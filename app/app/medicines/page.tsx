@@ -4,17 +4,26 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pill, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function MedicinesPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
 
-  if (!user) {
-    router.push('/auth/login');
-    return null;
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground animate-pulse">Loading medicines...</p>
+      </div>
+    );
   }
 
   const medicines = [
@@ -55,11 +64,10 @@ export default function MedicinesPage() {
                   <div className="p-3 rounded-lg bg-primary/10">
                     <Pill className="w-6 h-6 text-primary" />
                   </div>
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    medicine.inStock
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${medicine.inStock
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                       : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
+                    }`}>
                     {medicine.inStock ? 'In Stock' : 'Out of Stock'}
                   </span>
                 </div>

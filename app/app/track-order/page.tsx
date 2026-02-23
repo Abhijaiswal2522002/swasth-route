@@ -1,17 +1,27 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Phone, Clock, Package } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function TrackOrderPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (!user) {
-    router.push('/auth/login');
-    return null;
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground animate-pulse">Loading tracker...</p>
+      </div>
+    );
   }
 
   const orderStatus = {
@@ -50,11 +60,10 @@ export default function TrackOrderPage() {
           <div className="space-y-4">
             {statusSteps.map((step, index) => (
               <div key={index} className="flex items-start gap-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  step.completed
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${step.completed
                     ? 'bg-green-500 text-white'
                     : 'bg-gray-300 text-gray-600'
-                }`}>
+                  }`}>
                   {step.completed ? '✓' : index + 1}
                 </div>
                 <div className="flex-1">

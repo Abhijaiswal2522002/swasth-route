@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +8,21 @@ import { User, Phone, Mail, MapPin, Heart, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
-  if (!user) {
-    router.push('/auth/login');
-    return null;
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground animate-pulse">Loading profile...</p>
+      </div>
+    );
   }
 
   return (

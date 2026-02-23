@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import Footer from '@/components/Footer'
+import Navbar from '@/components/Navbar'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -39,9 +40,10 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <div className="flex flex-col min-h-screen">
-          <div className="flex-1">
+          <Navbar />
+          <main className="flex-1">
             {children}
-          </div>
+          </main>
           <Footer />
         </div>
         <Analytics />

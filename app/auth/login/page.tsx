@@ -84,7 +84,7 @@ export default function LoginPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 disabled={loading}
-                maxLength="10"
+                maxLength={10}
                 className="bg-input/50 border-primary/20 focus:border-primary"
               />
             </div>
@@ -121,11 +121,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="space-y-2 text-center text-sm">
-          <p className="text-muted-foreground">
-            Demo credentials: Phone: 9876543210, Password: test123
-          </p>
-        </div>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">

@@ -91,23 +91,6 @@ export default function HomePage() {
 
       {user && (
         <div className="min-h-screen bg-gradient-to-b from-background to-secondary/5">
-          {/* Header */}
-          <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b border-primary/10">
-            <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                SwasthRoute
-              </h1>
-              <div className="text-sm text-muted-foreground">
-                {location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    Location detected
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Main content */}
           <div className="max-w-7xl mx-auto px-6 py-12">
             {/* Search section */}

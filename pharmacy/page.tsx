@@ -56,24 +56,6 @@ export default function PharmacyDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card shadow-sm">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="rounded-full bg-primary p-2">
-                <Package className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <h1 className="text-2xl font-bold text-foreground">Pharmacy Dashboard</h1>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error && (

@@ -113,7 +113,7 @@ export default function SignupPage() {
                 value={formData.phone}
                 onChange={handleChange}
                 disabled={loading}
-                maxLength="10"
+                maxLength={10}
                 className="bg-input/50 border-primary/20 focus:border-primary"
               />
             </div>
