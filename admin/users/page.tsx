@@ -54,11 +54,10 @@ export default function AdminUsersPage() {
                 <td className="p-4">{user.phone}</td>
                 <td className="p-4">{user.orders}</td>
                 <td className="p-4">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    user.status === 'active'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${user.status === 'active'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                    }`}>
                     {user.status}
                   </span>
                 </td>

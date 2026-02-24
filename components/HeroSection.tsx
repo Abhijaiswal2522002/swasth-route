@@ -24,25 +24,8 @@ export default function HeroSection() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
-      <div className="relative z-10">
-        {/* Navigation */}
-        <nav className="flex items-center justify-between p-6 max-w-7xl mx-auto">
-          <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            SwasthRoute
-          </div>
-          <div className="flex gap-4">
-            <Link href="/auth/login">
-              <Button variant="ghost" className="text-primary hover:bg-primary/10">
-                Log In
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button className="bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all">
-                Sign Up
-              </Button>
-            </Link>
-          </div>
-        </nav>
+      <div className="relative z-10 pt-10 md:pt-20">
+        {/* Removed internal nav */}
 
         {/* Hero content */}
         <div className="max-w-7xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-12 items-center">

@@ -18,8 +18,10 @@ interface AuthResponse {
 
 // Standalone auth functions for useAuth hook
 export async function login(phone: string, password: string): Promise<AuthResponse> {
+  const url = `${API_URL}/auth/user/login`;
+  console.log('[v0] Fetching login from:', url);
   try {
-    const response = await fetch(`${API_URL}/auth/user/login`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,7 +29,9 @@ export async function login(phone: string, password: string): Promise<AuthRespon
       body: JSON.stringify({ phone, password }),
     });
 
+    console.log('[v0] Login response status:', response.status);
     const data = await response.json();
+    console.log('[v0] Login response data:', data);
 
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Login failed');
@@ -49,8 +53,10 @@ export async function login(phone: string, password: string): Promise<AuthRespon
 }
 
 export async function signup(name: string, phone: string, password: string): Promise<AuthResponse> {
+  const url = `${API_URL}/auth/user/signup`;
+  console.log('[v0] Fetching signup from:', url);
   try {
-    const response = await fetch(`${API_URL}/auth/user/signup`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,7 +64,9 @@ export async function signup(name: string, phone: string, password: string): Pro
       body: JSON.stringify({ name, phone, password }),
     });
 
+    console.log('[v0] Signup response status:', response.status);
     const data = await response.json();
+    console.log('[v0] Signup response data:', data);
 
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Signup failed');
@@ -75,6 +83,59 @@ export async function signup(name: string, phone: string, password: string): Pro
     };
   } catch (error) {
     console.error('[v0] Signup error:', error);
+    throw error;
+  }
+}
+export async function pharmacySignup(
+  name: string,
+  phone: string,
+  email: string,
+  password: string,
+  address: string,
+  city: string,
+  licenseNumber: string,
+  latitude: number,
+  longitude: number
+): Promise<AuthResponse> {
+  const url = `${API_URL}/auth/pharmacy/signup`;
+  console.log('[v0] Fetching pharmacy signup from:', url);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        password,
+        address,
+        city,
+        licenseNumber,
+        latitude,
+        longitude,
+      }),
+    });
+
+    console.log('[v0] Pharmacy Signup response status:', response.status);
+    const data = await response.json();
+    console.log('[v0] Pharmacy Signup response data:', data);
+
+    if (!response.ok) {
+      throw new Error(data.message || data.error || 'Pharmacy registration failed');
+    }
+
+    return {
+      token: data.token,
+      user: {
+        id: data.pharmacy.id,
+        phone: data.pharmacy.phone,
+        name: data.pharmacy.name,
+      },
+    };
+  } catch (error) {
+    console.error('[v0] Pharmacy Signup error:', error);
     throw error;
   }
 }
@@ -119,6 +180,7 @@ export class ApiClient {
         headers,
       });
 
+      console.log(`[v0] API Request: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -151,8 +213,9 @@ export class ApiClient {
     phone: string,
     email: string,
     password: string,
+    address: string,
     city: string,
-    pincode: string,
+    licenseNumber: string,
     latitude: number,
     longitude: number
   ) {
@@ -163,8 +226,9 @@ export class ApiClient {
         phone,
         email,
         password,
+        address,
         city,
-        pincode,
+        licenseNumber,
         latitude,
         longitude,
       }),

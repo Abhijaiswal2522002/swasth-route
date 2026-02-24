@@ -19,48 +19,29 @@ export default function Navbar() {
     setIsOpen(false);
   };
 
-  const isPharmacyPath = pathname.startsWith('/pharmacy');
-  const isAdminPath = pathname.startsWith('/admin');
+  const scrollToSection = (id: string) => {
+    if (pathname !== '/') {
+      router.push(`/#${id}`);
+    } else {
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+    setIsOpen(false);
+  };
 
-  // User navigation links
-  const userLinks = [
-    { label: 'Home', href: '/', icon: Home },
-    { label: 'My Orders', href: '/app/orders', icon: ShoppingCart },
-    { label: 'Medicines', href: '/app/medicines', icon: Pill },
-    { label: 'Track Order', href: '/app/track-order', icon: Clock },
-    { label: 'Profile', href: '/app/profile', icon: User },
+  const navLinks = [
+    { label: 'Home', action: () => router.push('/') },
+    { label: 'How It Works', action: () => scrollToSection('how-it-works') },
+    { label: 'For Pharmacies', action: () => scrollToSection('for-pharmacies') },
+    { label: 'Contact', action: () => scrollToSection('contact') },
   ];
-
-  // Pharmacy navigation links
-  const pharmacyLinks = [
-    { label: 'Dashboard', href: '/pharmacy', icon: BarChart3 },
-    { label: 'Orders', href: '/pharmacy/orders', icon: ShoppingCart },
-    { label: 'Medicines', href: '/pharmacy/medicines', icon: Pill },
-    { label: 'Earnings', href: '/pharmacy/earnings', icon: BarChart3 },
-    { label: 'Settings', href: '/pharmacy/settings', icon: Settings },
-  ];
-
-  // Admin navigation links
-  const adminLinks = [
-    { label: 'Dashboard', href: '/admin', icon: BarChart3 },
-    { label: 'Pharmacies', href: '/admin/pharmacies', icon: Users },
-    { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
-  ];
-
-  const navigationLinks = isPharmacyPath ? pharmacyLinks : isAdminPath ? adminLinks : userLinks;
-
-  if (!user) {
-    return null;
-  }
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-primary/10 shadow-sm">
+    <nav className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-md border-b border-primary/10 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
-        {/* Main Navbar */}
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link
             href="/"
@@ -70,53 +51,88 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1">
-            {navigationLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden lg:inline">{link.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* User Menu & Mobile Toggle */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg bg-primary/5">
-              <User className="w-4 h-4 text-primary" />
-              <span className="font-medium text-primary">{user.name}</span>
-            </div>
+          <div className="hidden lg:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <button
+                key={link.label}
+                onClick={link.action}
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+              >
+                {link.label}
+              </button>
+            ))}
 
             <Button
-              size="sm"
-              variant="outline"
-              onClick={handleLogout}
-              className="hidden sm:flex border-primary/20 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
+              onClick={() => scrollToSection('emergency')}
+              className="bg-destructive hover:bg-destructive/90 text-white font-bold animate-pulse hover:animate-none flex items-center gap-2"
             >
-              <LogOut className="w-4 h-4 mr-1" />
-              <span className="hidden md:inline">Logout</span>
+              Emergency Order 🚑
             </Button>
+          </div>
 
-            {/* Mobile Menu Button */}
+          {/* Auth / User Menu */}
+          <div className="hidden md:flex items-center gap-4 border-l border-primary/10 pl-6">
+            {user ? (
+              <>
+                <Link
+                  href="/app/orders"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary"
+                >
+                  My Orders
+                </Link>
+                <Link
+                  href="/app/profile"
+                  className="text-sm font-medium text-muted-foreground hover:text-primary"
+                >
+                  Profile
+                </Link>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/5 text-primary">
+                  <User className="w-4 h-4" />
+                  <span className="text-xs font-bold">{user.name}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login">
+                  <Button variant="ghost" className="text-sm font-medium">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button className="bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg transition-all">
+                    Sign Up
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="flex lg:hidden items-center gap-4">
+            <Button
+              size="sm"
+              onClick={() => scrollToSection('emergency')}
+              className="bg-destructive text-white text-[10px] h-8 px-2"
+            >
+              Emergency 🚑
+            </Button>
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-lg hover:bg-primary/10 transition-colors"
             >
               {isOpen ? (
-                <X className="w-5 h-5 text-primary" />
+                <X className="w-6 h-6 text-primary" />
               ) : (
-                <Menu className="w-5 h-5 text-primary" />
+                <Menu className="w-6 h-6 text-primary" />
               )}
             </button>
           </div>
@@ -124,41 +140,47 @@ export default function Navbar() {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden pb-4 space-y-2 border-t border-primary/10 pt-4">
-            {navigationLinks.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-primary hover:bg-primary/5'
-                  }`}
+          <div className="lg:hidden pb-6 space-y-4 border-t border-primary/10 pt-4 animate-in slide-in-from-top-4 duration-300">
+            <div className="grid grid-cols-1 gap-1">
+              {navLinks.map((link) => (
+                <button
+                  key={link.label}
+                  onClick={link.action}
+                  className="flex items-center px-4 py-3 rounded-xl text-base font-medium text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all text-left"
                 >
-                  <Icon className="w-4 h-4" />
                   {link.label}
-                </Link>
-              );
-            })}
+                </button>
+              ))}
+            </div>
 
-            <div className="px-4 pt-2 border-t border-primary/10 mt-2 space-y-2">
-              <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-primary/5">
-                <User className="w-4 h-4 text-primary" />
-                <span className="font-medium text-primary">{user.name}</span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleLogout}
-                className="w-full justify-start border-primary/20 hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
+            <div className="px-4 py-4 border-t border-primary/10 mt-2 space-y-4">
+              {user ? (
+                <>
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 text-primary">
+                    <User className="w-6 h-6" />
+                    <span className="font-bold">{user.name}</span>
+                  </div>
+                  <Link href="/app/orders" onClick={() => setIsOpen(false)} className="block p-3 hover:bg-primary/5 rounded-xl text-muted-foreground font-medium">My Orders</Link>
+                  <Link href="/app/profile" onClick={() => setIsOpen(false)} className="block p-3 hover:bg-primary/5 rounded-xl text-muted-foreground font-medium">Profile</Link>
+                  <Button
+                    variant="outline"
+                    onClick={handleLogout}
+                    className="w-full justify-center border-destructive/20 text-destructive hover:bg-destructive/5"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <Link href="/auth/login" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full">Login</Button>
+                  </Link>
+                  <Link href="/auth/signup" onClick={() => setIsOpen(false)}>
+                    <Button className="w-full">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

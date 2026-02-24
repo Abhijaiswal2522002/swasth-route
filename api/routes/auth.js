@@ -98,7 +98,7 @@ router.post('/user/login', async (req, res) => {
 // Pharmacy Sign Up
 router.post('/pharmacy/signup', async (req, res) => {
   try {
-    const { name, phone, email, password, city, pincode, latitude, longitude } = req.body;
+    const { name, phone, email, password, address, city, pincode, licenseNumber, latitude, longitude } = req.body;
 
     if (!name || !phone || !email || !password || !latitude || !longitude) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -120,7 +120,12 @@ router.post('/pharmacy/signup', async (req, res) => {
         type: 'Point',
         coordinates: [longitude, latitude],
       },
-      address: { city, pincode },
+      address: {
+        street: address, // Map incoming 'address' string to 'street'
+        city,
+        pincode
+      },
+      licenseNumber,
     });
 
     await pharmacy.save();
