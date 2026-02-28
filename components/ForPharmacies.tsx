@@ -59,23 +59,30 @@ export default function ForPharmacies() {
                         </Link>
                     </div>
 
-                    <div className="relative">
+                    <div className="relative h-full">
                         <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/10 shadow-2xl relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-grid-white/10 [mask-image:linear-gradient(0deg,transparent,black)]" />
+                            {/* Pharmacy Image with Overlay */}
+                            <img
+                                src="/pharmacy.jpg"
+                                alt="Pharmacy Network"
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 mix-blend-overlay"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+
                             <div className="absolute inset-0 flex items-center justify-center p-12">
-                                <div className="text-center space-y-6">
-                                    <div className="inline-block p-4 rounded-2xl bg-background shadow-xl border border-primary/10 animate-bounce">
+                                <div className="text-center space-y-6 relative z-10">
+                                    <div className="inline-block p-4 rounded-2xl bg-card shadow-2xl border border-primary/10 group-hover:-translate-y-2 transition-transform duration-500">
                                         <TrendingUp className="w-12 h-12 text-primary" />
                                     </div>
-                                    <h3 className="text-2xl font-bold">100% Digital Workflow</h3>
-                                    <p className="text-muted-foreground">Manage orders, update stock, and track earnings from one powerful dashboard.</p>
+                                    <h3 className="text-3xl font-black tracking-tight">100% Digital Workflow</h3>
+                                    <p className="text-muted-foreground font-medium max-w-sm mx-auto">Manage orders, update stock, and track earnings from one powerful dashboard.</p>
                                 </div>
                             </div>
                         </div>
                         {/* Floating stats card */}
-                        <div className="absolute -bottom-6 -left-6 bg-card p-6 rounded-2xl border border-primary/10 shadow-2xl space-y-2 max-w-[200px] animate-in fade-in slide-in-from-bottom-4">
-                            <div className="text-3xl font-bold text-primary">4.9/5</div>
-                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Partner Satisfaction</p>
+                        <div className="absolute -bottom-6 -left-6 bg-card/80 backdrop-blur-xl p-8 rounded-3xl border border-primary/10 shadow-2xl space-y-2 max-w-[240px] animate-fade-in group hover:-translate-y-1 transition-transform">
+                            <div className="text-4xl font-black text-primary tracking-tighter">4.9/5</div>
+                            <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Partner Satisfaction</p>
                         </div>
                     </div>
                 </div>

@@ -9,6 +9,8 @@ import HeroSection from '@/components/HeroSection';
 import FeaturesSection from '@/components/FeaturesSection';
 import HowItWorks from '@/components/HowItWorks';
 import ForPharmacies from '@/components/ForPharmacies';
+import TrustSection from '@/components/TrustSection';
+import PartnerLogos from '@/components/PartnerLogos';
 
 import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -94,8 +96,10 @@ export default function HomePage() {
         {!user && (
           <>
             <HeroSection />
+            <PartnerLogos />
             <HowItWorks />
             <FeaturesSection />
+            <TrustSection />
             <ForPharmacies />
           </>
         )}
