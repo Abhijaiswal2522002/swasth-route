@@ -17,13 +17,13 @@ export default function PartnerLogos() {
                     Powering the network with trusted partners
                 </p>
 
-                <div className="flex flex-wrap justify-center gap-12 md:gap-24 items-center opacity-40 hover:opacity-100 transition-opacity duration-700">
+                <div className="flex flex-wrap justify-center gap-8 md:gap-24 items-center opacity-40 hover:opacity-100 transition-opacity duration-700 mt-4 px-4">
                     {partners.map((partner, i) => (
-                        <div key={i} className="flex items-center gap-3 group cursor-pointer">
-                            <span className="text-3xl grayscale group-hover:grayscale-0 transition-all scale-100 group-hover:scale-125 duration-300">
+                        <div key={i} className="flex items-center gap-2 md:gap-3 group cursor-pointer">
+                            <span className="text-2xl md:text-3xl grayscale group-hover:grayscale-0 transition-all scale-100 group-hover:scale-125 duration-300">
                                 {partner.logo}
                             </span>
-                            <span className="text-xl font-black tracking-tighter group-hover:text-primary transition-colors">
+                            <span className="text-base md:text-xl font-black tracking-tighter group-hover:text-primary transition-colors">
                                 {partner.name}
                             </span>
                         </div>

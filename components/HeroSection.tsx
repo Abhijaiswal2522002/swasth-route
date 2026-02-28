@@ -104,33 +104,33 @@ export default function HeroSection() {
           </div>
 
           {/* Right side - Modern Visual Showcase */}
-          <div className="relative lg:block hidden">
-            <div className="relative z-20 transform hover:rotate-[-1deg] transition-transform duration-500">
+          <div className="relative mt-12 lg:mt-0">
+            <div className="relative z-20 transform hover:rotate-[-1deg] transition-transform duration-500 max-w-lg mx-auto lg:max-w-none">
               {/* Main Hero Image with Glass Frame */}
-              <div className="relative rounded-[2rem] overflow-hidden border border-white/20 shadow-2xl group">
+              <div className="relative rounded-[1.5rem] lg:rounded-[2rem] overflow-hidden border border-white/20 shadow-2xl group">
                 <img
                   src="/0_UMAMxjWMV_eDSw6u.jpg"
                   alt="Modern Healthcare"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  className="w-full h-auto aspect-video lg:aspect-square object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-tr from-primary/40 via-transparent to-transparent opacity-60" />
 
-                {/* Floating Info Overlay */}
-                <div className="absolute bottom-6 left-6 right-6 p-6 backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                      <Zap className="w-6 h-6 text-white" />
+                {/* Floating Info Overlay - Simplified for mobile */}
+                <div className="absolute bottom-4 left-4 right-4 lg:bottom-6 lg:left-6 lg:right-6 p-4 lg:p-6 backdrop-blur-md bg-white/10 border border-white/20 rounded-xl lg:rounded-2xl">
+                  <div className="flex items-center gap-3 lg:gap-4">
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-primary flex items-center justify-center shadow-lg shrink-0">
+                      <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-white font-bold text-lg">Instant Care</p>
-                      <p className="text-white/80 text-sm">Real-time prescription processing</p>
+                      <p className="text-white font-bold text-sm lg:text-lg">Instant Care</p>
+                      <p className="text-white/80 text-xs lg:text-sm">Real-time prescription processing</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Secondary Overlapping Image */}
-              <div className="absolute -bottom-10 -right-10 w-64 h-64 rounded-3xl overflow-hidden border-8 border-background shadow-2xl group">
+              {/* Secondary Overlapping Image - Adjusted for mobile */}
+              <div className="absolute -bottom-6 -right-4 lg:-bottom-10 lg:-right-10 w-32 h-32 lg:w-64 lg:h-64 rounded-2xl lg:rounded-3xl overflow-hidden border-4 lg:border-8 border-background shadow-2xl group hidden sm:block">
                 <img
                   src="/7965271_3721745-1024x683.jpg"
                   alt="Delivery Service"
@@ -140,8 +140,8 @@ export default function HeroSection() {
               </div>
             </div>
 
-            {/* Decorative background circle behind cards */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-tr from-primary/20 via-transparent to-accent/10 rounded-full blur-[100px] -z-10"></div>
+            {/* Decorative background circle */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-gradient-to-tr from-primary/20 via-transparent to-accent/10 rounded-full blur-[60px] lg:blur-[100px] -z-10"></div>
           </div>
         </div>
       </div>

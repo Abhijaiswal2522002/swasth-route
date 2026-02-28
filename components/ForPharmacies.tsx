@@ -79,10 +79,10 @@ export default function ForPharmacies() {
                                 </div>
                             </div>
                         </div>
-                        {/* Floating stats card */}
-                        <div className="absolute -bottom-6 -left-6 bg-card/80 backdrop-blur-xl p-8 rounded-3xl border border-primary/10 shadow-2xl space-y-2 max-w-[240px] animate-fade-in group hover:-translate-y-1 transition-transform">
-                            <div className="text-4xl font-black text-primary tracking-tighter">4.9/5</div>
-                            <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Partner Satisfaction</p>
+                        {/* Floating stats card - Adjusted for mobile position */}
+                        <div className="absolute -bottom-4 -left-2 md:-bottom-6 md:-left-6 bg-card/90 backdrop-blur-xl p-5 md:p-8 rounded-2xl md:rounded-3xl border border-primary/10 shadow-2xl space-y-1 md:space-y-2 max-w-[180px] md:max-w-[240px] animate-fade-in group hover:-translate-y-1 transition-transform z-20">
+                            <div className="text-2xl md:text-4xl font-black text-primary tracking-tighter">4.9/5</div>
+                            <p className="text-[10px] md:text-sm text-muted-foreground font-bold uppercase tracking-widest leading-tight">Partner Satisfaction</p>
                         </div>
                     </div>
                 </div>
