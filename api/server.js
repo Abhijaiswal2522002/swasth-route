@@ -62,13 +62,33 @@ app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const envVars = {
+    MONGODB_URI: process.env.MONGODB_URI ? 'Present' : 'Missing',
+    JWT_SECRET: process.env.JWT_SECRET ? 'Present' : 'Missing',
+    FRONTEND_URL: process.env.FRONTEND_URL ? process.env.FRONTEND_URL : 'Missing',
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    PORT: process.env.PORT || 'not set'
+  };
+
+  res.json({
+    status: 'ok',
+    timestamp: new Date(),
+    database: dbStatus,
+    environment: envVars,
+    allowedOrigins
+  });
 });
 
 // 404 Handler
 app.use((req, res, next) => {
-  console.warn(`404 - Not Found: ${req.method} ${req.url}`);
-  res.status(404).json({ error: 'Route not found' });
+  const message = `404 - Not Found: ${req.method} ${req.url}`;
+  console.warn(message);
+  res.status(404).json({
+    error: 'Route not found',
+    path: req.url,
+    method: req.method
+  });
 });
 
 // Error handling middleware
