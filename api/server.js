@@ -32,10 +32,15 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     const normalizedOrigin = origin.replace(/\/$/, '');
-    if (allowedOrigins.includes(normalizedOrigin)) {
+
+    // Automatically allow any Vercel deployment or the production onrender URL
+    const isVercel = normalizedOrigin.endsWith('.vercel.app');
+    const isRender = normalizedOrigin.endsWith('.onrender.com');
+
+    if (allowedOrigins.includes(normalizedOrigin) || isVercel || isRender) {
       callback(null, true);
     } else {
-      console.error(`CORS Error: Origin ${origin} is not allowed. Allowed:`, allowedOrigins);
+      console.error(`CORS Error: Origin ${origin} is not allowed. Allowed list:`, allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
