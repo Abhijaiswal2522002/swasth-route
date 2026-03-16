@@ -16,6 +16,11 @@ interface AuthResponse {
   };
 }
 
+export interface CaptchaData {
+  id: string;
+  question: string;
+}
+
 // Standalone auth functions for useAuth hook
 export async function login(phone: string, password: string): Promise<AuthResponse> {
   const url = `${API_URL}/auth/user/login`;
@@ -86,6 +91,22 @@ export async function signup(name: string, phone: string, password: string): Pro
     throw error;
   }
 }
+
+export async function getCaptcha(): Promise<CaptchaData> {
+  const url = `${API_URL}/auth/captcha`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to get CAPTCHA');
+    }
+    return data;
+  } catch (error) {
+    console.error('[v0] Get CAPTCHA error:', error);
+    throw error;
+  }
+}
+
 export async function pharmacySignup(
   name: string,
   phone: string,
@@ -95,7 +116,9 @@ export async function pharmacySignup(
   city: string,
   licenseNumber: string,
   latitude: number,
-  longitude: number
+  longitude: number,
+  captchaId: string,
+  captchaAnswer: string
 ): Promise<AuthResponse> {
   const url = `${API_URL}/auth/pharmacy/signup`;
   console.log('[v0] Fetching pharmacy signup from:', url);
@@ -115,6 +138,8 @@ export async function pharmacySignup(
         licenseNumber,
         latitude,
         longitude,
+        captchaId,
+        captchaAnswer,
       }),
     });
 
@@ -217,7 +242,9 @@ export class ApiClient {
     city: string,
     licenseNumber: string,
     latitude: number,
-    longitude: number
+    longitude: number,
+    captchaId: string,
+    captchaAnswer: string
   ) {
     return this.request('/auth/pharmacy/signup', {
       method: 'POST',
@@ -231,6 +258,8 @@ export class ApiClient {
         licenseNumber,
         latitude,
         longitude,
+        captchaId,
+        captchaAnswer,
       }),
     });
   }

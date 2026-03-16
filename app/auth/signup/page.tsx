@@ -4,13 +4,18 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { getCaptcha, CaptchaData } from '@/lib/api';
+import { useEffect } from 'react';
+import { RefreshCcw } from 'lucide-react';
 
 export default function SignupPage() {
   const router = useRouter();
   const { signup, pharmacySignup, loading, error, clearError } = useAuth();
+  const { location: geoPerm, loading: geoLoading, error: geoError } = useGeolocation();
   const [step, setStep] = useState<'selection' | 'form'>('selection');
   const [role, setRole] = useState<'user' | 'pharmacy'>('user');
   const [formData, setFormData] = useState({
@@ -24,6 +29,23 @@ export default function SignupPage() {
     licenseNumber: '',
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  const [captcha, setCaptcha] = useState<CaptchaData | null>(null);
+  const [captchaInput, setCaptchaInput] = useState('');
+
+  const fetchCaptcha = async () => {
+    try {
+      const data = await getCaptcha();
+      setCaptcha(data);
+    } catch (err) {
+      console.error('Failed to fetch CAPTCHA:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (step === 'form' && role === 'pharmacy') {
+      fetchCaptcha();
+    }
+  }, [step, role]);
 
   const validateForm = () => {
     if (!formData.name.trim()) {
@@ -47,6 +69,14 @@ export default function SignupPage() {
       }
       if (!formData.licenseNumber.trim()) {
         setLocalError('Pharmacy License Number is required');
+        return false;
+      }
+      if (!geoPerm) {
+        setLocalError('Location permission is required for pharmacies');
+        return false;
+      }
+      if (!captchaInput.trim()) {
+        setLocalError('Please complete the CAPTCHA');
         return false;
       }
     }
@@ -92,8 +122,7 @@ export default function SignupPage() {
       if (role === 'user') {
         await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.password);
       } else {
-        // For pharmacy, we need location. In a real app we'd get this from the user.
-        // For now, using placeholders for lat/long.
+        // Map captured geolocation to signup call
         await pharmacySignup(
           formData.name,
           formData.phone.replace(/\D/g, ''),
@@ -102,8 +131,10 @@ export default function SignupPage() {
           formData.address,
           formData.city,
           formData.licenseNumber,
-          0, // latitude placeholder
-          0  // longitude placeholder
+          geoPerm?.latitude || 0,
+          geoPerm?.longitude || 0,
+          captcha?.id || '',
+          captchaInput
         );
       }
       router.push('/');
@@ -291,6 +322,54 @@ export default function SignupPage() {
                   disabled={loading}
                   className="bg-input/50 border-primary/20 focus:border-primary"
                 />
+              </div>
+
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${geoPerm ? 'bg-green-500' : geoError ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`} />
+                    Location Status
+                  </span>
+                  <span className={geoPerm ? 'text-green-600' : geoError ? 'text-red-500' : 'text-yellow-600'}>
+                    {geoPerm ? 'Detected' : geoError ? 'Failed' : geoLoading ? 'Finding...' : 'Waiting...'}
+                  </span>
+                </div>
+                {geoPerm && (
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Lat: {geoPerm.latitude.toFixed(4)}, Lng: {geoPerm.longitude.toFixed(4)}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="captcha" className="text-sm font-medium">
+                  Security Check *
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 flex items-center justify-between px-3 bg-primary/5 border border-primary/20 rounded-md text-sm">
+                    <span className="font-medium text-primary">
+                      {captcha ? captcha.question : 'Loading...'}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={fetchCaptcha}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    id="captcha"
+                    type="text"
+                    placeholder="Answer"
+                    value={captchaInput}
+                    onChange={(e) => setCaptchaInput(e.target.value)}
+                    disabled={loading}
+                    className="w-24 bg-input/50 border-primary/20 focus:border-primary"
+                  />
+                </div>
               </div>
             </>
           )}

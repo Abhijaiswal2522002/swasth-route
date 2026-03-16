@@ -24,7 +24,9 @@ interface AuthState {
     city: string,
     licenseNumber: string,
     latitude: number,
-    longitude: number
+    longitude: number,
+    captchaId: string,
+    captchaAnswer: string
   ) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -109,7 +111,9 @@ export function useAuth(): AuthState {
       city: string,
       licenseNumber: string,
       latitude: number,
-      longitude: number
+      longitude: number,
+      captchaId: string,
+      captchaAnswer: string
     ) => {
       setLoading(true);
       setError(null);
@@ -126,7 +130,9 @@ export function useAuth(): AuthState {
           city,
           licenseNumber,
           latitude,
-          longitude
+          longitude,
+          captchaId,
+          captchaAnswer
         );
         console.log('[v0] Pharmacy signup response:', response);
 

@@ -3,12 +3,34 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
+import { sendAdminNotification } from '../utils/email.js';
 
 const router = express.Router();
+
+// Temporary in-memory store for CAPTCHAs (in production, use Redis or sessions)
+const captchaStore = new Map();
 
 const generateToken = (id, role, expiresIn = '7d') => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn });
 };
+
+// Get CAPTCHA
+router.get('/captcha', (req, res) => {
+  const num1 = Math.floor(Math.random() * 10);
+  const num2 = Math.floor(Math.random() * 10);
+  const id = Date.now().toString();
+  const answer = num1 + num2;
+
+  captchaStore.set(id, answer);
+
+  // Auto-expire CAPTCHA after 5 minutes
+  setTimeout(() => captchaStore.delete(id), 5 * 60 * 1000);
+
+  res.json({
+    id,
+    question: `What is ${num1} + ${num2}?`,
+  });
+});
 
 // User Sign Up
 router.post('/user/signup', async (req, res) => {
@@ -98,9 +120,26 @@ router.post('/user/login', async (req, res) => {
 // Pharmacy Sign Up
 router.post('/pharmacy/signup', async (req, res) => {
   try {
-    const { name, phone, email, password, address, city, pincode, licenseNumber, latitude, longitude } = req.body;
+    const {
+      name, phone, email, password, address, city, pincode,
+      licenseNumber, latitude, longitude,
+      captchaId, captchaAnswer
+    } = req.body;
 
-    if (!name || !phone || !email || !password || !latitude || !longitude) {
+    // Verify CAPTCHA
+    if (!captchaId || !captchaAnswer) {
+      return res.status(400).json({ error: 'CAPTCHA is required' });
+    }
+
+    const storedAnswer = captchaStore.get(captchaId);
+    if (storedAnswer === undefined || parseInt(captchaAnswer) !== storedAnswer) {
+      return res.status(400).json({ error: 'Invalid CAPTCHA answer' });
+    }
+
+    // Clear CAPTCHA after use
+    captchaStore.delete(captchaId);
+
+    if (!name || !phone || !email || !password || typeof latitude !== 'number' || typeof longitude !== 'number') {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -129,6 +168,9 @@ router.post('/pharmacy/signup', async (req, res) => {
     });
 
     await pharmacy.save();
+
+    // Send notification to admin (don't await to avoid delaying response)
+    sendAdminNotification(pharmacy);
 
     const token = generateToken(pharmacy._id, 'pharmacy');
 
