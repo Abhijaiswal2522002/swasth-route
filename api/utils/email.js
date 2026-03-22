@@ -3,7 +3,9 @@ import nodemailer from 'nodemailer';
 export const sendAdminNotification = async (pharmacy) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -45,7 +47,9 @@ export const sendAdminNotification = async (pharmacy) => {
 export const sendPasswordResetEmail = async (email, resetToken, name) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
