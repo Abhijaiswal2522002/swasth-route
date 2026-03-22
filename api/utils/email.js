@@ -12,7 +12,8 @@ export const sendAdminNotification = async (pharmacy) => {
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      family: 4
     });
 
     const mailOptions = {
@@ -59,7 +60,8 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
       },
       tls: {
         rejectUnauthorized: false
-      }
+      },
+      family: 4
     });
 
     const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
