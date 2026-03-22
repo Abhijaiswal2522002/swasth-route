@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import ApiClient from '@/lib/api';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -59,74 +59,82 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
-      <div className="p-8 space-y-8">
-        <div className="space-y-2 text-center">
-          <div className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Reset Password
-          </div>
-          <p className="text-muted-foreground text-sm">
-            Enter your new password below
-          </p>
+    <div className="p-8 space-y-8">
+      <div className="space-y-2 text-center">
+        <div className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          Reset Password
         </div>
-
-        {success ? (
-          <div className="space-y-6 text-center">
-            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 text-sm">
-              Password successfully reset! Redirecting to login...
-            </div>
-            <Button className="w-full" onClick={() => router.push('/auth/login')}>
-              Go to Login
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="newPassword" className="text-sm font-medium">
-                New Password
-              </label>
-              <Input
-                id="newPassword"
-                type="password"
-                placeholder="••••••••"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                disabled={loading || !token}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirm New Password
-              </label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={loading || !token}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              disabled={loading || !token}
-              className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300"
-            >
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </Button>
-          </form>
-        )}
+        <p className="text-muted-foreground text-sm">
+          Enter your new password below
+        </p>
       </div>
+
+      {success ? (
+        <div className="space-y-6 text-center">
+          <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 text-sm">
+            Password successfully reset! Redirecting to login...
+          </div>
+          <Button className="w-full" onClick={() => router.push('/auth/login')}>
+            Go to Login
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="newPassword" className="text-sm font-medium">
+              New Password
+            </label>
+            <Input
+              id="newPassword"
+              type="password"
+              placeholder="••••••••"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              disabled={loading || !token}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="text-sm font-medium">
+              Confirm New Password
+            </label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="••••••••"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading || !token}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading || !token}
+            className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300"
+          >
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
+      <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+        <ResetPasswordForm />
+      </Suspense>
     </Card>
   );
 }

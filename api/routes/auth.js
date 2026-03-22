@@ -243,6 +243,8 @@ router.post('/admin/login', async (req, res) => {
         token,
         admin: { id: 'admin', role: 'admin' },
       });
+    } else {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -250,12 +252,7 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // Forgot Password
-router.get('/forgot-password', (req, res) => {
-  res.status(405).json({ error: 'Method Not Allowed', message: 'Please use POST to request a reset link.' });
-});
-
 router.post('/forgot-password', async (req, res) => {
-  console.log('Received forgot-password request:', req.body);
   try {
     const { contact } = req.body; // email or phone
 
