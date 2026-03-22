@@ -332,4 +332,9 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Logout
+router.post('/logout', (req, res) => {
+  res.json({ message: 'Logged out successfully' });
+});
+
 export default router;
