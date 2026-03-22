@@ -104,6 +104,13 @@ export default function LoginPage() {
               disabled={loading}
               className="bg-input/50 border-primary/20 focus:border-primary"
             />
+            <div className="flex justify-end">
+              <Link href="/auth/forgot-password">
+                <span className="text-xs text-primary hover:underline cursor-pointer">
+                  Forgot Password?
+                </span>
+              </Link>
+            </div>
           </div>
 
           {(localError || error) && (

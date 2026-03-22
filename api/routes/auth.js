@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
-import { sendAdminNotification } from '../utils/email.js';
+import { sendAdminNotification, sendPasswordResetEmail } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -243,9 +243,93 @@ router.post('/admin/login', async (req, res) => {
         token,
         admin: { id: 'admin', role: 'admin' },
       });
-    } else {
-      return res.status(401).json({ error: 'Invalid credentials' });
     }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Forgot Password
+router.get('/forgot-password', (req, res) => {
+  res.status(405).json({ error: 'Method Not Allowed', message: 'Please use POST to request a reset link.' });
+});
+
+router.post('/forgot-password', async (req, res) => {
+  console.log('Received forgot-password request:', req.body);
+  try {
+    const { contact } = req.body; // email or phone
+
+    if (!contact) {
+      return res.status(400).json({ error: 'Email or phone is required' });
+    }
+
+    // Search in both User and Pharmacy
+    let user = await User.findOne({ $or: [{ email: contact }, { phone: contact }] });
+    let role = 'user';
+
+    if (!user) {
+      user = await Pharmacy.findOne({ $or: [{ email: contact }, { phone: contact }] });
+      role = 'pharmacy';
+    }
+
+    if (!user) {
+      // For security reasons, don't reveal if user exists or not
+      return res.json({ message: 'If an account exists, a reset link has been sent.' });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ error: 'No email associated with this account. Please contact support.' });
+    }
+
+    // Generate reset token (valid for 1 hour)
+    const resetToken = jwt.sign({ id: user._id, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Send email
+    await sendPasswordResetEmail(user.email, resetToken, user.name);
+
+    res.json({ message: 'If an account exists, a reset link has been sent.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset Password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const { id, role } = decoded;
+
+    // Find user/pharmacy
+    let user;
+    if (role === 'user') {
+      user = await User.findById(id);
+    } else if (role === 'pharmacy') {
+      user = await Pharmacy.findById(id);
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -191,7 +191,7 @@ export class ApiClient {
       const url = `${API_URL}${endpoint}`;
       const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-      const headers: HeadersInit = {
+      const headers: any = {
         'Content-Type': 'application/json',
         ...options.headers,
       };
@@ -275,6 +275,20 @@ export class ApiClient {
     return this.request('/auth/admin/login', {
       method: 'POST',
       body: JSON.stringify({ adminId, password }),
+    });
+  }
+
+  static async forgotPassword(contact: string) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ contact }),
+    });
+  }
+
+  static async resetPassword(token: string, newPassword: string) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
     });
   }
 

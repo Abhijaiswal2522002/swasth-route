@@ -41,3 +41,45 @@ export const sendAdminNotification = async (pharmacy) => {
     return null;
   }
 };
+
+export const sendPasswordResetEmail = async (email, resetToken, name) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
+
+    const mailOptions = {
+      from: `"SwasthRoute" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+          <h2 style="color: #2563eb;">Password Reset Request</h2>
+          <p>Hello ${name},</p>
+          <p>We received a request to reset your password for your SwasthRoute account.</p>
+          <p>Please click the button below to reset your password. This link will expire in 1 hour.</p>
+          <div style="margin: 30px 0;">
+            <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Reset Password</a>
+          </div>
+          <p>If you did not request this, please ignore this email.</p>
+          <hr />
+          <p style="font-size: 12px; color: #666;">If you're having trouble clicking the button, copy and paste the link below into your web browser:</p>
+          <p style="font-size: 12px; color: #666;">${resetUrl}</p>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Password reset email sent: %s', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    return null;
+  }
+};
