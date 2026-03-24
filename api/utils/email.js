@@ -1,23 +1,27 @@
 import nodemailer from 'nodemailer';
 
+// Create a reusable transporter object using the default SMTP transport
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    family: 4
+  });
+};
+
 export const sendAdminNotification = async (pharmacy) => {
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      family: 4
-    });
-
+    const transporter = createTransporter();
     const mailOptions = {
-      from: `"SwasthRoute Admin" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM,
       to: process.env.ADMIN_EMAIL,
       subject: 'New Pharmacy Registration Request',
       html: `
@@ -42,32 +46,21 @@ export const sendAdminNotification = async (pharmacy) => {
     return info;
   } catch (error) {
     console.error('Error sending admin notification email:', error);
-    // We don't want to throw error here to avoid failing the signup process
-    // if only the email notification fails.
     return null;
   }
 };
 
 export const sendPasswordResetEmail = async (email, resetToken, name) => {
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      family: 4
-    });
-
+    const transporter = createTransporter();
     const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
 
+    const fromEmail = process.env.EMAIL_FROM;
+    console.log('Sending email from:', fromEmail);
+    console.log('Sending password reset email TO:', email);
+
     const mailOptions = {
-      from: `"SwasthRoute" <${process.env.EMAIL_USER}>`,
+      from: fromEmail, // Simplified format
       to: email,
       subject: 'Password Reset Request',
       html: `
@@ -98,25 +91,12 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
 
 export const sendWelcomeEmail = async (email, name, role) => {
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      family: 4
-    });
-
+    const transporter = createTransporter();
     const isPharmacy = role === 'pharmacy';
     const loginUrl = `${process.env.FRONTEND_URL}/auth/login`;
 
     const mailOptions = {
-      from: `"SwasthRoute" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_FROM,
       to: email,
       subject: isPharmacy ? 'Welcome to SwasthRoute Pharmacy Network' : 'Welcome to SwasthRoute',
       html: `
