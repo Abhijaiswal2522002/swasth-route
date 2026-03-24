@@ -12,8 +12,7 @@ const createTransporter = () => {
     },
     tls: {
       rejectUnauthorized: false
-    },
-    family: 4
+    }
   });
 };
 
