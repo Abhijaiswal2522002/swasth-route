@@ -1,0 +1,4 @@
+# Ignore the Express backend from Vercel Serverless Functions deployment
+# Vercel by default treats anything in the /api folder as a Serverless Function,
+# which causes you to hit the 12 function limit on the Hobby plan.
+api/
