@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, AlertCircle } from 'lucide-react';
+import { Search, MapPin, AlertCircle, ShoppingCart, Clock, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
 import { PharmacyCard } from '@/components/PharmacyCard';
 import HeroSection from '@/components/HeroSection';
 import FeaturesSection from '@/components/FeaturesSection';
@@ -15,6 +16,7 @@ import PartnerLogos from '@/components/PartnerLogos';
 import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Pharmacy {
   _id: string;
@@ -30,6 +32,7 @@ interface Pharmacy {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const { location } = useGeolocation();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,87 +112,169 @@ export default function HomePage() {
           {user ? (
             <div className="min-h-screen bg-gradient-to-b from-background to-secondary/5">
               <div className="max-w-7xl mx-auto px-6 py-12">
-                <div className="space-y-6 mb-12">
-                  <div className="space-y-2">
-                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                      Find Emergency Medicines
-                    </h2>
-                    <p className="text-xl text-muted-foreground">
-                      Search for medicines and find nearby pharmacies with real-time availability
-                    </p>
-                  </div>
-
-                  <div className="relative group">
-                    <div className="absolute inset-0 bg-primary/5 blur-2xl group-focus-within:bg-primary/10 transition-colors" />
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-primary" />
-                    <Input
-                      placeholder="Search medicines or pharmacies..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-14 h-16 text-lg border-primary/20 bg-card/50 backdrop-blur-sm focus:border-primary shadow-lg relative rounded-2xl"
-                    />
-                  </div>
-                </div>
-
-                {location && (
-                  <div className="mb-8 p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-4">
-                    <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="font-bold text-lg">Location Enabled</p>
-                      <p className="text-muted-foreground leading-relaxed">
-                        Showing pharmacies near your location. Results are sorted using our real-time hyper-local routing algorithm.
+                {user.role === 'pharmacy' ? (
+                  <div className="space-y-8">
+                    <div className="space-y-4">
+                      <h1 className="text-4xl font-black tracking-tight">
+                        Welcome back, <span className="text-primary">{user.name}</span>
+                      </h1>
+                      <p className="text-xl text-muted-foreground max-w-2xl">
+                        Monitor your pharmacy's performance and manage emergency medicine orders in real-time.
                       </p>
                     </div>
-                  </div>
-                )}
 
-                <div className="space-y-8">
-                  <div className="flex items-end justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-bold">
-                        {searchQuery ? 'Search Results' : 'Nearby Pharmacies'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
-                        {filteredPharmacies.length} pharmacies found
-                      </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                            <ShoppingCart className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Total Orders</p>
+                            <h3 className="text-3xl font-bold">128</h3>
+                          </div>
+                        </div>
+                        <Button variant="ghost" className="w-full justify-start text-primary" onClick={() => router.push('/app/orders')}>
+                          View all orders →
+                        </Button>
+                      </Card>
+
+                      <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-500">
+                            <Clock className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Pending</p>
+                            <h3 className="text-3xl font-bold">5</h3>
+                          </div>
+                        </div>
+                        <Button variant="ghost" className="w-full justify-start text-amber-500" onClick={() => router.push('/app/orders?status=pending')}>
+                          Review requests →
+                        </Button>
+                      </Card>
+
+                      <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/10">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="p-3 rounded-xl bg-green-500/10 text-green-500">
+                            <CheckCircle className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Revenue</p>
+                            <h3 className="text-3xl font-bold">₹24,500</h3>
+                          </div>
+                        </div>
+                        <Button variant="ghost" className="w-full justify-start text-green-500" onClick={() => router.push('/app/analytics')}>
+                          View analytics →
+                        </Button>
+                      </Card>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                       <div className="p-8 rounded-2xl bg-primary/5 border border-primary/10 space-y-6">
+                          <h3 className="text-2xl font-bold">Quick Actions</h3>
+                          <div className="grid grid-cols-1 gap-4">
+                            <Button className="h-14 text-lg font-bold" onClick={() => router.push('/app/inventory')}>
+                               Manage Inventory
+                            </Button>
+                            <Button variant="outline" className="h-14 text-lg font-bold" onClick={() => router.push('/app/profile')}>
+                               Update Pharmacy Profile
+                            </Button>
+                          </div>
+                       </div>
+                       <div className="p-8 rounded-2xl bg-accent/5 border border-accent/10 space-y-4 flex flex-col justify-center text-center">
+                          <AlertCircle className="w-12 h-12 text-accent mx-auto" />
+                          <h3 className="text-2xl font-bold text-accent">Availability Status</h3>
+                          <p className="text-muted-foreground">Your pharmacy is currently marked as <span className="font-bold text-green-500 uppercase">Open</span></p>
+                          <Button variant="outline" className="border-accent/20 hover:bg-accent/10">Toggle Offline</Button>
+                       </div>
                     </div>
                   </div>
-
-                  {filteredPharmacies.length > 0 ? (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                      {filteredPharmacies.map((pharmacy) => (
-                        <PharmacyCard
-                          key={pharmacy._id}
-                          id={pharmacy._id}
-                          name={pharmacy.name}
-                          address={`${pharmacy.address.city} - ${pharmacy.address.pincode}`}
-                          rating={pharmacy.rating}
-                          distance={pharmacy.distance}
-                          deliveryTime={pharmacy.deliveryTime}
-                          isOpen={pharmacy.isOpen}
-                          onViewDetails={handleViewDetails}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-24 text-center space-y-6">
-                      <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto opacity-20">
-                        <Search className="w-10 h-10" />
-                      </div>
+                ) : (
+                  <>
+                    <div className="space-y-6 mb-12">
                       <div className="space-y-2">
-                        <p className="text-2xl font-bold">No pharmacies found</p>
-                        <p className="text-muted-foreground max-w-md mx-auto">We couldn't find any pharmacies matching your search. Try broadening your criteria or search term.</p>
+                        <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                          Find Emergency Medicines
+                        </h2>
+                        <p className="text-xl text-muted-foreground">
+                          Search for medicines and find nearby pharmacies with real-time availability
+                        </p>
                       </div>
-                      <Button
-                        variant="secondary"
-                        onClick={() => setSearchQuery('')}
-                        className="px-8 h-12"
-                      >
-                        Clear Search
-                      </Button>
+
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-primary/5 blur-2xl group-focus-within:bg-primary/10 transition-colors" />
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-primary" />
+                        <Input
+                          placeholder="Search medicines or pharmacies..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-14 h-16 text-lg border-primary/20 bg-card/50 backdrop-blur-sm focus:border-primary shadow-lg relative rounded-2xl"
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {location && (
+                      <div className="mb-8 p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-4">
+                        <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-bold text-lg">Location Enabled</p>
+                          <p className="text-muted-foreground leading-relaxed">
+                            Showing pharmacies near your location. Results are sorted using our real-time hyper-local routing algorithm.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-8">
+                      <div className="flex items-end justify-between">
+                        <div className="space-y-1">
+                          <h3 className="text-2xl font-bold">
+                            {searchQuery ? 'Search Results' : 'Nearby Pharmacies'}
+                          </h3>
+                          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+                            {filteredPharmacies.length} pharmacies found
+                          </p>
+                        </div>
+                      </div>
+
+                      {filteredPharmacies.length > 0 ? (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                          {filteredPharmacies.map((pharmacy) => (
+                            <PharmacyCard
+                              key={pharmacy._id}
+                              id={pharmacy._id}
+                              name={pharmacy.name}
+                              address={`${pharmacy.address.city} - ${pharmacy.address.pincode}`}
+                              rating={pharmacy.rating}
+                              distance={pharmacy.distance}
+                              deliveryTime={pharmacy.deliveryTime}
+                              isOpen={pharmacy.isOpen}
+                              onViewDetails={handleViewDetails}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-24 text-center space-y-6">
+                          <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto opacity-20">
+                            <Search className="w-10 h-10" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-2xl font-bold">No pharmacies found</p>
+                            <p className="text-muted-foreground max-w-md mx-auto">We couldn't find any pharmacies matching your search. Try broadening your criteria or search term.</p>
+                          </div>
+                          <Button
+                            variant="secondary"
+                            onClick={() => setSearchQuery('')}
+                            className="px-8 h-12"
+                          >
+                            Clear Search
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (

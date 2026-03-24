@@ -12,15 +12,21 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, loading, error, clearError } = useAuth();
   const [formData, setFormData] = useState({
-    phone: '',
+    email: '',
     password: '',
   });
   const [localError, setLocalError] = useState<string | null>(null);
 
   const validateForm = () => {
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
-      setLocalError('Enter a valid Indian phone number');
+    if (!formData.email.trim()) {
+      setLocalError('Email is required');
+      return false;
+    }
+    
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setLocalError('Enter a valid email address');
       return false;
     }
 
@@ -50,7 +56,7 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.phone.replace(/\D/g, ''), formData.password);
+      await login(formData.email, formData.password);
       router.push('/');
     } catch (err) {
       console.error('[v0] Login failed:', err);
@@ -69,25 +75,19 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="phone" className="text-sm font-medium">
-              Phone Number
+            <label htmlFor="email" className="text-sm font-medium">
+              Email Address
             </label>
-            <div className="flex gap-2">
-              <div className="flex items-center px-3 bg-input/50 border border-primary/20 rounded-md text-muted-foreground text-sm font-medium">
-                +91
-              </div>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="9876543210"
-                value={formData.phone}
-                onChange={handleChange}
-                disabled={loading}
-                maxLength={10}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-            </div>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              disabled={loading}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
           </div>
 
           <div className="space-y-2">

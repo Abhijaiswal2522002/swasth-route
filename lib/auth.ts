@@ -13,8 +13,8 @@ export class AuthManager {
   private static readonly USER_KEY = 'user';
   private static readonly ROLE_KEY = 'role';
 
-  static async loginUser(phone: string, password: string) {
-    const response = await ApiClient.userLogin(phone, password);
+  static async loginUser(email: string, password: string) {
+    const response = await ApiClient.userLogin(email, password);
 
     if (response.error) {
       throw new Error(response.error);
@@ -33,7 +33,7 @@ export class AuthManager {
     return data.user;
   }
 
-  static async signupUser(phone: string, name: string, password: string, email?: string) {
+  static async signupUser(phone: string, name: string, email: string, password: string) {
     const response = await ApiClient.userSignUp(phone, name, password, email);
 
     if (response.error) {

@@ -53,12 +53,13 @@ export default function SignupPage() {
       return false;
     }
 
+    if (!formData.email.trim()) {
+      setLocalError('Email is required');
+      return false;
+    }
+
     // Role specific validation
     if (role === 'pharmacy') {
-      if (!formData.email.trim()) {
-        setLocalError('Email is required');
-        return false;
-      }
       if (!formData.address.trim()) {
         setLocalError('Pharmacy Address is required');
         return false;
@@ -120,7 +121,7 @@ export default function SignupPage() {
 
     try {
       if (role === 'user') {
-        await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.password);
+        await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.email, formData.password);
       } else {
         // Map captured geolocation to signup call
         await pharmacySignup(
@@ -258,24 +259,24 @@ export default function SignupPage() {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email Address *
+            </label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder={role === 'user' ? 'john@example.com' : 'pharmacy@example.com'}
+              value={formData.email}
+              onChange={handleChange}
+              disabled={loading}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
+          </div>
+
           {role === 'pharmacy' && (
             <>
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
-                  Email Address *
-                </label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="pharmacy@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="bg-input/50 border-primary/20 focus:border-primary"
-                />
-              </div>
-
               <div className="space-y-2">
                 <label htmlFor="address" className="text-sm font-medium">
                   Pharmacy Address *

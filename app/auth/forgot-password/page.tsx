@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
             Forgot Password
           </div>
           <p className="text-muted-foreground text-sm">
-            Enter your email or phone number to receive a reset link
+            Enter your email - to receive a reset link
           </p>
         </div>
 
@@ -62,12 +62,12 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="contact" className="text-sm font-medium">
-                Email or Phone Number
+                Email
               </label>
               <Input
                 id="contact"
                 type="text"
-                placeholder="email@example.com or 9876543210"
+                placeholder="email@example.com "
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 disabled={loading}

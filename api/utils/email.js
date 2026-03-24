@@ -95,3 +95,68 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
     return null;
   }
 };
+
+export const sendWelcomeEmail = async (email, name, role) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      family: 4
+    });
+
+    const isPharmacy = role === 'pharmacy';
+    const loginUrl = `${process.env.FRONTEND_URL}/auth/login`;
+
+    const mailOptions = {
+      from: `"SwasthRoute" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: isPharmacy ? 'Welcome to SwasthRoute Pharmacy Network' : 'Welcome to SwasthRoute',
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; margin: 0;">SwasthRoute</h1>
+            <p style="color: #666; font-size: 14px;">Your Emergency Medicine Delivery Partner</p>
+          </div>
+          <h2 style="color: #333;">Welcome, ${name}!</h2>
+          <p>We're thrilled to have you join our community.</p>
+          
+          ${isPharmacy ? `
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-weight: bold; color: #1e40af;">Registration Status: Pending Verification</p>
+              <p style="margin: 10px 0 0; font-size: 14px;">Our team is currently reviewing your pharmacy license and details. You will receive another notification once your account is fully approved.</p>
+            </div>
+          ` : `
+            <p>You can now discover nearby pharmacies, search for emergency medicines, and get them delivered to your doorstep in no time.</p>
+          `}
+          
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${loginUrl}" style="background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Login to Your Account</a>
+          </div>
+          
+          <p style="font-size: 14px;">If you have any questions or need assistance, feel free to reply to this email or reach out to our support team.</p>
+          
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+          <div style="text-align: center; font-size: 12px; color: #999;">
+            <p>&copy; ${new Date().getFullYear()} SwasthRoute. All rights reserved.</p>
+            <p>Providing critical medicine access when it matters most.</p>
+          </div>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Welcome email sent: %s', info.messageId);
+    return info;
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+    return null;
+  }
+};

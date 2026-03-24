@@ -12,6 +12,7 @@ interface AuthResponse {
     id: string;
     phone: string;
     name: string;
+    role: 'user' | 'pharmacy' | 'admin';
     email?: string;
   };
 }
@@ -22,7 +23,7 @@ export interface CaptchaData {
 }
 
 // Standalone auth functions for useAuth hook
-export async function login(phone: string, password: string): Promise<AuthResponse> {
+export async function login(email: string, password: string): Promise<AuthResponse> {
   const url = `${API_URL}/auth/user/login`;
   console.log('[v0] Fetching login from:', url);
   try {
@@ -31,7 +32,7 @@ export async function login(phone: string, password: string): Promise<AuthRespon
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email, password }),
     });
 
     console.log('[v0] Login response status:', response.status);
@@ -49,6 +50,7 @@ export async function login(phone: string, password: string): Promise<AuthRespon
         phone: data.user.phone,
         name: data.user.name,
         email: data.user.email,
+        role: data.user.role || 'user',
       },
     };
   } catch (error) {
@@ -57,7 +59,7 @@ export async function login(phone: string, password: string): Promise<AuthRespon
   }
 }
 
-export async function signup(name: string, phone: string, password: string): Promise<AuthResponse> {
+export async function signup(name: string, phone: string, email: string, password: string): Promise<AuthResponse> {
   const url = `${API_URL}/auth/user/signup`;
   console.log('[v0] Fetching signup from:', url);
   try {
@@ -66,7 +68,7 @@ export async function signup(name: string, phone: string, password: string): Pro
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, phone, password }),
+      body: JSON.stringify({ name, phone, email, password }),
     });
 
     console.log('[v0] Signup response status:', response.status);
@@ -84,6 +86,7 @@ export async function signup(name: string, phone: string, password: string): Pro
         phone: data.user.phone,
         name: data.user.name,
         email: data.user.email,
+        role: data.user.role || 'user',
       },
     };
   } catch (error) {
@@ -157,6 +160,7 @@ export async function pharmacySignup(
         id: data.pharmacy.id,
         phone: data.pharmacy.phone,
         name: data.pharmacy.name,
+        role: data.pharmacy.role || 'pharmacy',
       },
     };
   } catch (error) {
@@ -219,17 +223,17 @@ export class ApiClient {
   }
 
   // Auth endpoints - kept for backwards compatibility
-  static async userSignUp(phone: string, name: string, password: string, email?: string) {
+  static async userSignUp(phone: string, name: string, password: string, email: string) {
     return this.request('/auth/user/signup', {
       method: 'POST',
       body: JSON.stringify({ phone, name, password, email }),
     });
   }
 
-  static async userLogin(phone: string, password: string) {
+  static async userLogin(email: string, password: string) {
     return this.request('/auth/user/login', {
       method: 'POST',
-      body: JSON.stringify({ phone, password }),
+      body: JSON.stringify({ email, password }),
     });
   }
 

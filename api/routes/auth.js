@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
-import { sendAdminNotification, sendPasswordResetEmail } from '../utils/email.js';
+import { sendAdminNotification, sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -38,14 +38,15 @@ router.post('/user/signup', async (req, res) => {
     const { phone, name, email, password } = req.body;
 
     // Validate input
-    if (!phone || !name || !password) {
+    if (!phone || !name || !email || !password) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     // Check if user exists
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
     if (existingUser) {
-      return res.status(409).json({ error: 'Phone number already registered' });
+      const field = existingUser.phone === phone ? 'Phone number' : 'Email';
+      return res.status(409).json({ error: `${field} already registered` });
     }
 
     // Hash password
@@ -61,6 +62,9 @@ router.post('/user/signup', async (req, res) => {
 
     await user.save();
 
+    // Send welcome email (don't await to avoid delaying response)
+    sendWelcomeEmail(user.email, user.name, 'user');
+
     const token = generateToken(user._id, 'user');
 
     res.status(201).json({
@@ -71,6 +75,7 @@ router.post('/user/signup', async (req, res) => {
         phone: user.phone,
         name: user.name,
         email: user.email,
+        role: 'user',
       },
     });
   } catch (error) {
@@ -78,40 +83,53 @@ router.post('/user/signup', async (req, res) => {
   }
 });
 
-// User Login
+// Unified Login (User & Pharmacy)
 router.post('/user/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Phone and password required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const user = await User.findOne({ phone });
-    if (!user) {
+    // 1. Try to find in User collection
+    let account = await User.findOne({ email });
+    let role = 'user';
+
+    // 2. If not found, try to find in Pharmacy collection
+    if (!account) {
+      account = await Pharmacy.findOne({ email });
+      role = 'pharmacy';
+    }
+
+    if (!account) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, account.password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    // Update last login
+    account.lastLogin = new Date();
+    await account.save();
 
-    const token = generateToken(user._id, 'user');
+    const token = generateToken(account._id, role);
 
-    res.json({
+    const responseData = {
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
+        id: account._id,
+        phone: account.phone,
+        name: account.name,
+        email: account.email,
+        role: role,
       },
-    });
+    };
+
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -169,6 +187,9 @@ router.post('/pharmacy/signup', async (req, res) => {
 
     await pharmacy.save();
 
+    // Send welcome email (don't await to avoid delaying response)
+    sendWelcomeEmail(pharmacy.email, pharmacy.name, 'pharmacy');
+
     // Send notification to admin (don't await to avoid delaying response)
     sendAdminNotification(pharmacy);
 
@@ -182,6 +203,7 @@ router.post('/pharmacy/signup', async (req, res) => {
         name: pharmacy.name,
         phone: pharmacy.phone,
         status: pharmacy.status,
+        role: 'pharmacy',
       },
     });
   } catch (error) {
@@ -218,6 +240,7 @@ router.post('/pharmacy/login', async (req, res) => {
         name: pharmacy.name,
         phone: pharmacy.phone,
         status: pharmacy.status,
+        role: 'pharmacy',
       },
     });
   } catch (error) {
