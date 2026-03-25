@@ -9,6 +9,7 @@ interface User {
   name: string;
   role: 'user' | 'pharmacy' | 'admin';
   email?: string;
+  addresses?: any[];
 }
 
 interface AuthContextType {
@@ -16,8 +17,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, phone: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  signup: (name: string, phone: string, email: string, password: string) => Promise<User>;
   pharmacySignup: (
     name: string,
     phone: string,
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(response.user);
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      return response.user;
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
@@ -89,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(response.user);
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
+      return response.user;
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err.message || 'Signup failed';
       setError(errorMessage);

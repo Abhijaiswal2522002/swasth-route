@@ -13,6 +13,10 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
+  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy')) {
+    return null;
+  }
+
   const handleLogout = async () => {
     await logout();
     router.push('/');

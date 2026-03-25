@@ -22,7 +22,7 @@ export default function LoginPage() {
       setLocalError('Email is required');
       return false;
     }
-    
+
     // Basic email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
@@ -56,8 +56,14 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.email, formData.password);
-      router.push('/');
+      const user = await login(formData.email, formData.password);
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else if (user.role === 'pharmacy') {
+        router.push('/pharmacy');
+      } else {
+        router.push('/app');
+      }
     } catch (err) {
       console.error('[v0] Login failed:', err);
     }

@@ -1,7 +1,16 @@
+'use client';
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Mail, Phone, MapPin, Github, Twitter, Instagram } from 'lucide-react';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy')) {
+    return null;
+  }
+
   return (
     <footer id="contact" className="bg-card border-t border-primary/10 pt-20 pb-10">
       <div className="max-w-7xl mx-auto px-6">
