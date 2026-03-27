@@ -15,7 +15,7 @@
 Uses MongoDB `2dsphere` indexing to perform lightning-fast coordinate-based searches. Patients find the nearest pharmacies within seconds during critical emergencies.
 
 ### 🛡️ Hardened Security
-Features a **"Verify-Before-Save"** registration flow. Accounts are not persisted to the database until the email address is confirmed via a secure JWT-linked token, preventing database bloat and unauthorized bot registrations.
+Features a **"Verify-Before-Save"** registration Flow. Accounts are not persisted to the database until the email address is confirmed via a secure JWT-linked token, preventing database bloat and unauthorized bot registrations.
 
 ### 🍱 Multi-Portal Ecosystem
 A unified experience with dedicated, role-protected environments:
