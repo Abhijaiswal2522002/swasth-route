@@ -6,10 +6,16 @@ export const metadata: Metadata = {
   description: 'Manage pharmacies and platform analytics',
 };
 
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AdminLayoutClient>{children}</AdminLayoutClient>;
+  return (
+    <ProtectedRoute allowedRoles={['admin']}>
+      <AdminLayoutClient>{children}</AdminLayoutClient>
+    </ProtectedRoute>
+  );
 }

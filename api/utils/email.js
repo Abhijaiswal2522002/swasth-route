@@ -82,6 +82,37 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
   return sendBrevoEmail(email, name, 'Password Reset Request', html);
 };
 
+export const sendEmailVerification = async (email, name, role, verificationToken) => {
+  const isPharmacy = role === 'pharmacy';
+  const verifyUrl = `${process.env.FRONTEND_URL}/auth/verify?token=${verificationToken}`;
+  const subject = `Verify your ${isPharmacy ? 'Pharmacy' : 'User'} Account - SwasthRoute`;
+  
+  const html = `
+    <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 10px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2563eb; margin: 0;">SwasthRoute</h1>
+        <p style="color: #666; font-size: 14px;">Confirm your registration</p>
+      </div>
+      <h2 style="color: #333;">Action Required: Verify your email</h2>
+      <p>Hello ${name},</p>
+      <p>Thank you for signing up for SwasthRoute! To complete your registration and activate your account, please verify your email address by clicking the button below.</p>
+      
+      <div style="margin: 30px 0; text-align: center;">
+        <a href="${verifyUrl}" style="background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verify Email Address</a>
+      </div>
+      
+      <p style="font-size: 14px; color: #666;">This verification link will expire in 24 hours. If you did not sign up for an account, you can safely ignore this email.</p>
+      
+      <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+      <div style="text-align: center; font-size: 12px; color: #999;">
+        <p>&copy; ${new Date().getFullYear()} SwasthRoute. All rights reserved.</p>
+        <p>Providing critical medicine access when it matters most.</p>
+      </div>
+    </div>
+  `;
+  return sendBrevoEmail(email, name, subject, html);
+};
+
 export const sendWelcomeEmail = async (email, name, role) => {
   const isPharmacy = role === 'pharmacy';
   const loginUrl = `${process.env.FRONTEND_URL}/auth/login`;

@@ -59,7 +59,12 @@ export async function login(email: string, password: string): Promise<AuthRespon
   }
 }
 
-export async function signup(name: string, phone: string, email: string, password: string): Promise<AuthResponse> {
+export interface SignupResponse {
+  message: string;
+  redirect: string;
+}
+
+export async function signup(name: string, phone: string, email: string, password: string): Promise<SignupResponse> {
   const url = `${API_URL}/auth/user/signup`;
   console.log('[v0] Fetching signup from:', url);
   try {
@@ -71,23 +76,14 @@ export async function signup(name: string, phone: string, email: string, passwor
       body: JSON.stringify({ name, phone, email, password }),
     });
 
-    console.log('[v0] Signup response status:', response.status);
     const data = await response.json();
-    console.log('[v0] Signup response data:', data);
-
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Signup failed');
     }
 
     return {
-      token: data.token,
-      user: {
-        id: data.user._id || data.user.id,
-        phone: data.user.phone,
-        name: data.user.name,
-        email: data.user.email,
-        role: data.user.role || 'user',
-      },
+      message: data.message,
+      redirect: data.redirect || '/auth/login',
     };
   } catch (error) {
     console.error('[v0] Signup error:', error);
@@ -122,9 +118,8 @@ export async function pharmacySignup(
   longitude: number,
   captchaId: string,
   captchaAnswer: string
-): Promise<AuthResponse> {
+): Promise<SignupResponse> {
   const url = `${API_URL}/auth/pharmacy/signup`;
-  console.log('[v0] Fetching pharmacy signup from:', url);
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -132,39 +127,37 @@ export async function pharmacySignup(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name,
-        phone,
-        email,
-        password,
-        address,
-        city,
-        licenseNumber,
-        latitude,
-        longitude,
-        captchaId,
-        captchaAnswer,
+        name, phone, email, password, address, city, 
+        licenseNumber, latitude, longitude, captchaId, captchaAnswer,
       }),
     });
 
-    console.log('[v0] Pharmacy Signup response status:', response.status);
     const data = await response.json();
-    console.log('[v0] Pharmacy Signup response data:', data);
-
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Pharmacy registration failed');
     }
 
     return {
-      token: data.token,
-      user: {
-        id: data.pharmacy.id,
-        phone: data.pharmacy.phone,
-        name: data.pharmacy.name,
-        role: data.pharmacy.role || 'pharmacy',
-      },
+      message: data.message,
+      redirect: data.redirect || '/auth/login',
     };
   } catch (error) {
     console.error('[v0] Pharmacy Signup error:', error);
+    throw error;
+  }
+}
+
+export async function verifyEmail(token: string): Promise<{ message: string }> {
+  const url = `${API_URL}/auth/verify-email?token=${token}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Verification failed');
+    }
+    return data;
+  } catch (error) {
+    console.error('[v0] Verify Email error:', error);
     throw error;
   }
 }
@@ -416,6 +409,13 @@ export class ApiClient {
     return this.request('/pharmacies/profile');
   }
 
+  static async updatePharmacyProfile(data: any) {
+    return this.request('/pharmacies/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   static async getPharmacyOrders(status?: string) {
     const params = new URLSearchParams(status ? { status } : {});
     return this.request<any[]>(`/pharmacies/orders/list?${params}`);
@@ -450,7 +450,21 @@ export class ApiClient {
   }
 
   static async getPharmacyAnalytics() {
-    return this.request('/pharmacies/analytics');
+    return this.request<any>('/pharmacies/analytics');
+  }
+
+  static async addMedicine(medicineName: string, quantity: number, price: number, reorderLevel: number) {
+    return this.request('/pharmacies/inventory/add', {
+      method: 'POST',
+      body: JSON.stringify({ medicineName, quantity, price, reorderLevel }),
+    });
+  }
+
+  static async updateInventory(medicineId: string, quantity: number, price?: number) {
+    return this.request(`/pharmacies/inventory/${medicineId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ quantity, price }),
+    });
   }
 
   // Admin endpoints

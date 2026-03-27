@@ -120,11 +120,12 @@ export default function SignupPage() {
     }
 
     try {
+      let response;
       if (role === 'user') {
-        await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.email, formData.password);
+        response = await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.email, formData.password);
       } else {
         // Map captured geolocation to signup call
-        await pharmacySignup(
+        response = await pharmacySignup(
           formData.name,
           formData.phone.replace(/\D/g, ''),
           formData.email,
@@ -138,7 +139,9 @@ export default function SignupPage() {
           captchaInput
         );
       }
-      router.push('/app');
+      
+      // Redirect to login with success message from backend
+      router.push(`/auth/login?msg=${encodeURIComponent(response.message)}`);
     } catch (err) {
       console.error('[v0] Signup failed:', err);
     }

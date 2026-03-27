@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
-import { sendAdminNotification, sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email.js';
+import { sendAdminNotification, sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerification } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -52,32 +52,68 @@ router.post('/user/signup', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = new User({
-      phone,
-      name,
-      email,
-      password: hashedPassword,
+    // Generate Verification Token (expires in 24h)
+    const verificationToken = jwt.sign(
+      { phone, name, email, password: hashedPassword, role: 'user' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Send verification email
+    await sendEmailVerification(email, name, 'user', verificationToken);
+
+    res.status(200).json({
+      message: 'Verification email sent. Please check your inbox.',
+      redirect: '/auth/login'
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    await user.save();
+// Verify Email Endpoint
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Verification token is missing' });
 
-    // Send welcome email (don't await to avoid delaying response)
-    sendWelcomeEmail(user.email, user.name, 'user');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid or expired verification token' });
+    }
 
-    const token = generateToken(user._id, 'user');
+    const { role, email, phone, name, password, ...rest } = decoded;
 
-    res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: {
-        id: user._id,
-        phone: user.phone,
-        name: user.name,
-        email: user.email,
-        role: 'user',
-      },
-    });
+    // Check if user already exists (final check)
+    if (role === 'user') {
+      const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
+      if (existingUser) return res.status(409).json({ error: 'User already verified and registered' });
+
+      const user = new User({ phone, name, email, password, isVerified: true });
+      await user.save();
+      sendWelcomeEmail(user.email, user.name, 'user');
+    } else if (role === 'pharmacy') {
+      const existingPharmacy = await Pharmacy.findOne({ $or: [{ phone }, { email }] });
+      if (existingPharmacy) return res.status(409).json({ error: 'Pharmacy already verified and registered' });
+
+      const pharmacy = new Pharmacy({
+        name, phone, email, password,
+        location: rest.location,
+        address: rest.address,
+        licenseNumber: rest.licenseNumber,
+        isVerified: true,
+        status: 'pending' // Still requires admin approval
+      });
+      await pharmacy.save();
+      sendWelcomeEmail(pharmacy.email, pharmacy.name, 'pharmacy');
+      sendAdminNotification(pharmacy);
+    }
+
+    // Redirect to login with success message
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${frontendUrl}/auth/login?verified=true`);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -104,6 +140,10 @@ router.post('/user/login', async (req, res) => {
 
     if (!account) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (account.isVerified === false) {
+      return res.status(403).json({ error: 'Please verify your email address before logging in.' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, account.password);
@@ -168,43 +208,25 @@ router.post('/pharmacy/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const pharmacy = new Pharmacy({
-      name,
-      phone,
-      email,
-      password: hashedPassword,
-      location: {
-        type: 'Point',
-        coordinates: [longitude, latitude],
+    // Generate Verification Token
+    const verificationToken = jwt.sign(
+      {
+        name, phone, email, password: hashedPassword,
+        location: { type: 'Point', coordinates: [longitude, latitude] },
+        address: { street: address, city, pincode },
+        licenseNumber,
+        role: 'pharmacy'
       },
-      address: {
-        street: address, // Map incoming 'address' string to 'street'
-        city,
-        pincode
-      },
-      licenseNumber,
-    });
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
-    await pharmacy.save();
+    // Send verification email
+    await sendEmailVerification(email, name, 'pharmacy', verificationToken);
 
-    // Send welcome email (don't await to avoid delaying response)
-    sendWelcomeEmail(pharmacy.email, pharmacy.name, 'pharmacy');
-
-    // Send notification to admin (don't await to avoid delaying response)
-    sendAdminNotification(pharmacy);
-
-    const token = generateToken(pharmacy._id, 'pharmacy');
-
-    res.status(201).json({
-      message: 'Pharmacy registered successfully',
-      token,
-      pharmacy: {
-        id: pharmacy._id,
-        name: pharmacy.name,
-        phone: pharmacy.phone,
-        status: pharmacy.status,
-        role: 'pharmacy',
-      },
+    res.status(200).json({
+      message: 'Verification email sent. Please check your inbox.',
+      redirect: '/auth/login'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -3,14 +3,21 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, loading, error, clearError } = useAuth();
+  
+  const msg = searchParams.get('msg');
+  const verified = searchParams.get('verified');
+  const registered = searchParams.get('registered');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -118,6 +125,14 @@ export default function LoginPage() {
               </Link>
             </div>
           </div>
+
+          {(msg || verified || registered) && !error && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium animate-in fade-in slide-in-from-top-1">
+              {verified ? 'Email verified successfully! You can now log in.' : 
+               registered ? 'Account created! Please check your email to verify before logging in.' : 
+               msg}
+            </div>
+          )}
 
           {(localError || error) && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">

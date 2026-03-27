@@ -18,7 +18,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<User>;
-  signup: (name: string, phone: string, email: string, password: string) => Promise<User>;
+  signup: (name: string, phone: string, email: string, password: string) => Promise<{ message: string; redirect: string }>;
   pharmacySignup: (
     name: string,
     phone: string,
@@ -31,7 +31,7 @@ interface AuthContextType {
     longitude: number,
     captchaId: string,
     captchaAnswer: string
-  ) => Promise<void>;
+  ) => Promise<{ message: string; redirect: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -88,12 +88,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const response = await apiSignup(name, phone, email, password);
-      setUser(response.user);
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      return response.user;
+      // No longer set user/token immediately due to verification requirement
+      return response;
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err.message || 'Signup failed';
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Signup failed';
       setError(errorMessage);
       throw err;
     } finally {
@@ -113,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     longitude: number,
     captchaId: string,
     captchaAnswer: string
-  ) => {
+  ): Promise<{ message: string; redirect: string }> => {
     setLoading(true);
     setError(null);
     try {
@@ -121,11 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name, phone, email, password, address, city, 
         licenseNumber, latitude, longitude, captchaId, captchaAnswer
       );
-      setUser(response.user);
-      localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      return response as { message: string; redirect: string };
     } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err.message || 'Pharmacy registration failed';
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Pharmacy registration failed';
       setError(errorMessage);
       throw err;
     } finally {
