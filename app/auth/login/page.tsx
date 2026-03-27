@@ -8,13 +8,13 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, loading, error, clearError } = useAuth();
-  
+
   const msg = searchParams.get('msg');
   const verified = searchParams.get('verified');
   const registered = searchParams.get('registered');
@@ -128,9 +128,9 @@ export default function LoginPage() {
 
           {(msg || verified || registered) && !error && (
             <div className="p-3 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium animate-in fade-in slide-in-from-top-1">
-              {verified ? 'Email verified successfully! You can now log in.' : 
-               registered ? 'Account created! Please check your email to verify before logging in.' : 
-               msg}
+              {verified ? 'Email verified successfully! You can now log in.' :
+                registered ? 'Account created! Please check your email to verify before logging in.' :
+                  msg}
             </div>
           )}
 
@@ -170,5 +170,19 @@ export default function LoginPage() {
         </Link>
       </div>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
+        <div className="p-8 flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Card>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { verifyEmail } from '@/lib/api';
 
-export default function VerifyPage() {
+function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get('token');
@@ -87,5 +87,19 @@ export default function VerifyPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
+        <Card className="max-w-md w-full p-8 text-center backdrop-blur-sm border-primary/10 bg-card/80">
+          <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto" />
+        </Card>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   );
 }
