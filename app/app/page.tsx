@@ -1,83 +1,132 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, MapPin, AlertCircle, Clock, 
-  ChevronRight, FileText, HeadphonesIcon, 
+import {
+  Search, MapPin, AlertCircle, Clock,
+  ChevronRight, FileText, HeadphonesIcon,
   RefreshCw, Store, Truck, LogOut
 } from 'lucide-react';
+import ApiClient from '@/lib/api';
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
-  
-  // Mocks for UI Layout
-  const hasActiveOrder = true;
-  const activeOrder = {
-    id: '#ORD-9821',
-    status: 'Out for delivery',
-    eta: '12 mins',
-    desc: 'Paracetamol 500mg, Vitamin C',
-  };
+  const [profile, setProfile] = useState<any>(null);
+  const [activeOrder, setActiveOrder] = useState<any>(null);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [nearbyPharmacies, setNearbyPharmacies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentOrders = [
-    { id: '#ORD-8734', items: 'Ibuprofen 400mg, Cough Syrup', date: 'Sep 25', total: '₹320' },
-    { id: '#ORD-8120', items: 'Amoxicillin 250mg', date: 'Aug 10', total: '₹150' },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch user profile to get latest addresses
+        const profileRes = await ApiClient.getUserProfile();
+        if (profileRes.data) {
+          setProfile(profileRes.data);
+        }
 
-  const nearbyPharmacies = [
-    { name: 'Apollo Pharmacy', dist: '0.8 km', status: 'Open', color: 'text-green-600', dot: 'bg-green-500' },
-    { name: 'Wellness Forever', dist: '1.2 km', status: 'Open 24/7', color: 'text-green-600', dot: 'bg-green-500' },
-    { name: 'City Medico', dist: '2.5 km', status: 'Closed', color: 'text-red-500', dot: 'bg-red-500' },
-    { name: 'PharmaPlus', dist: '3.1 km', status: 'Open', color: 'text-green-600', dot: 'bg-green-500' },
-  ];
+        // Fetch orders
+        const ordersRes = await ApiClient.getUserOrders();
+        if (ordersRes.data) {
+          const allOrders = ordersRes.data as any[];
+          // Find first active order (not delivered or cancelled)
+          const active = allOrders.find((o: any) => 
+            !['delivered', 'cancelled'].includes(o.status)
+          );
+          setActiveOrder(active);
+          
+          // Set recent orders (delivered or cancelled, max 2 for dashboard)
+          const recent = allOrders
+            .filter((o: any) => ['delivered', 'cancelled'].includes(o.status))
+            .slice(0, 2);
+          setRecentOrders(recent);
+        }
 
-  const defaultAddress = user?.addresses?.find((a: any) => a.isDefault) || {
+        // Fetch nearby pharmacies
+        // Default to a central location if user doesn't have coordinates
+        let lat = 19.0760;
+        let lon = 72.8777;
+
+        const defaultAddr = (profileRes.data as any)?.addresses?.find((a: any) => a.isDefault) || (profileRes.data as any)?.addresses?.[0];
+        if (defaultAddr && defaultAddr.latitude && defaultAddr.longitude) {
+          lat = defaultAddr.latitude;
+          lon = defaultAddr.longitude;
+        }
+        
+        const pharmaciesRes = await ApiClient.getNearbyPharmacies(lat, lon);
+        if (pharmaciesRes.data) {
+          setNearbyPharmacies((pharmaciesRes.data as any[]).slice(0, 4));
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const defaultAddress = profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
     label: 'Home',
-    street: '101, A Wing, Crystal Palace, Linking Road, Mumbai'
+    street: 'Add an address to see nearby pharmacies'
   };
+
+  if (isLoading && !profile) {
+    return (
+      <div className="w-full h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-gray-500 font-medium">Loading your health dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex flex-col gap-6 md:gap-8 px-4 sm:px-6 lg:px-8 py-6">
-      
+
       {/* Top Section Header / Hero */}
       <div className="bg-[#0b8a4f] text-white px-6 py-8 md:py-10 rounded-2xl md:rounded-3xl shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         {/* Decorative background circle */}
         <div className="absolute top-[-50px] right-[-50px] md:-right-20 md:-top-20 w-40 h-40 md:w-80 md:h-80 bg-white/10 rounded-full blur-2xl md:blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-[-30px] left-[-30px] w-32 h-32 bg-accent/20 rounded-full blur-2xl pointer-events-none"></div>
-        
+
         <div className="flex flex-col gap-4 md:gap-6 relative z-10 w-full md:w-1/2">
           <div className="flex justify-between items-start md:block">
             <div>
-              <p className="text-white/80 text-sm md:text-base font-medium mb-1">Hello {user?.name?.split(' ')[0] || 'Abhishek'},</p>
+              <p className="text-white/80 text-sm md:text-base font-medium mb-1">Hello {profile?.name?.split(' ')[0] || user?.name?.split(' ')[0] || 'User'},</p>
               <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">Need Medicines <br className="hidden md:block" />Fast? 👋</h1>
             </div>
-            
+
             {/* Mobile-only Logout/User (Hidden on desktop since layout has it) */}
             <div className="md:hidden flex items-center gap-3">
-              <button 
+              <button
                 onClick={() => {
                   localStorage.removeItem('authToken');
                   localStorage.removeItem('user');
                   window.location.href = '/';
-                }} 
+                }}
                 className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 flex items-center justify-center transition-all shadow-sm"
               >
-                <LogOut size={18} className="translate-x-[-1px]"/>
+                <LogOut size={18} className="translate-x-[-1px]" />
               </button>
             </div>
           </div>
 
           {/* Location Bar */}
-          <div className="flex items-center w-max max-w-full gap-2 text-sm md:text-base font-medium bg-black/15 px-4 py-2 border border-white/10 rounded-full backdrop-blur-md cursor-pointer hover:bg-black/25 transition-colors">
+          <Link href="/app/profile" className="flex items-center w-max max-w-full gap-2 text-sm md:text-base font-medium bg-black/15 px-4 py-2 border border-white/10 rounded-full backdrop-blur-md cursor-pointer hover:bg-black/25 transition-colors">
             <MapPin className="w-4 h-4 md:w-5 md:h-5 fill-white/40 shrink-0" />
             <span className="truncate text-white/95">{defaultAddress.label} • {defaultAddress.street.split(',')[0]}</span>
             <ChevronRight className="w-3 h-3 md:w-4 md:h-4 opacity-70 text-white shrink-0" />
-          </div>
+          </Link>
         </div>
 
         {/* Search Bar & Action - Desktop Right Side */}
@@ -88,8 +137,8 @@ export default function AppHomeDashboard() {
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-500" />
               </div>
-              <Input 
-                placeholder="Search medicines, health products..." 
+              <Input
+                placeholder="Search medicines, health products..."
                 className="w-full bg-white text-gray-900 pl-12 pr-4 border-0 h-14 md:h-16 rounded-xl shadow-inner focus-visible:ring-4 focus-visible:ring-[#0b8a4f] transition-all text-base focus-visible:outline-none"
               />
             </div>
@@ -98,15 +147,15 @@ export default function AppHomeDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-8 min-h-max">
-        
+
         {/* LEFT COLUMN: Emergency & Active Orders */}
         <div className="md:col-span-5 lg:col-span-4 space-y-6">
-          
+
           {/* EMERGENCY ORDER BUTTON */}
           <button className="w-full relative overflow-hidden group rounded-2xl md:rounded-3xl bg-red-600 text-white p-5 md:p-6 shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_12px_40px_rgb(239,68,68,0.4)] transition-all active:scale-[0.98]">
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="absolute -right-4 -top-4 w-32 h-32 md:w-48 md:h-48 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 animate-pulse"></div>
-            
+
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="p-3 md:p-4 bg-white/20 rounded-xl md:rounded-2xl backdrop-blur-sm">
@@ -122,7 +171,7 @@ export default function AppHomeDashboard() {
           </button>
 
           {/* ACTIVE ORDER WIDGET */}
-          {hasActiveOrder && (
+          {activeOrder && (
             <Card className="border-primary/20 bg-primary/5 shadow-sm overflow-hidden md:rounded-2xl">
               <div className="bg-primary/10 px-5 pt-4 pb-3 flex justify-between items-center border-b border-primary/10">
                 <div className="flex items-center gap-2">
@@ -132,7 +181,7 @@ export default function AppHomeDashboard() {
                   </span>
                   <span className="text-xs font-bold text-primary uppercase tracking-wider">Active Order</span>
                 </div>
-                <span className="text-xs font-bold">{activeOrder.eta}</span>
+                <span className="text-xs font-bold">{activeOrder.estimatedDeliveryTime} mins</span>
               </div>
               <CardContent className="p-5 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
@@ -140,11 +189,20 @@ export default function AppHomeDashboard() {
                     <Truck className="w-6 h-6 text-primary" />
                   </div>
                   <div className="pt-1">
-                    <p className="font-bold text-base">{activeOrder.status}</p>
-                    <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">{activeOrder.desc}</p>
+                    <p className="font-bold text-base capitalize">{activeOrder.status}</p>
+                    <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">
+                      {activeOrder.items?.map((it: any) => it.medicineName).join(', ')}
+                    </p>
                   </div>
                 </div>
-                <Button size="sm" className="w-full rounded-xl h-10 font-semibold shadow-sm tracking-wide">Track Live Location</Button>
+                <Link href={`/app/track-order/${activeOrder._id}`}>
+                  <Button
+                    size="sm"
+                    className="w-full rounded-xl h-10 font-semibold shadow-sm tracking-wide"
+                  >
+                    Track Live Location
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}
@@ -160,35 +218,41 @@ export default function AppHomeDashboard() {
               <span className="text-xs md:text-sm font-semibold">Support Chat</span>
             </Button>
           </div>
-          
+
         </div>
 
         {/* RIGHT COLUMN: Pharmacies & History */}
         <div className="md:col-span-7 lg:col-span-8 flex flex-col gap-6 lg:gap-8">
-          
+
           {/* NEARBY PHARMACIES */}
           <div className="space-y-4 bg-white p-5 md:p-6 lg:p-8 rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-gray-100 flex-1">
             <div className="flex justify-between items-end border-b pb-3 mb-2">
               <h3 className="font-bold text-xl text-gray-900">Nearby Pharmacies</h3>
-              <span className="text-sm text-primary font-semibold hover:underline cursor-pointer">View Map</span>
+              <Link href="/app/pharmacies" className="text-sm text-primary font-semibold hover:underline cursor-pointer">View Map</Link>
             </div>
-            
+
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {nearbyPharmacies.map((pharm, i) => (
+              {nearbyPharmacies.length > 0 ? nearbyPharmacies.map((pharm, i) => (
                 <div key={i} className="bg-gray-50 border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-md hover:bg-white transition-all group">
                   <div className="p-2.5 bg-white w-12 h-12 rounded-lg flex items-center justify-center mb-3 shadow-sm border border-gray-100 group-hover:border-primary/20">
                     <Store className="w-6 h-6 text-primary" />
                   </div>
                   <h4 className="font-bold text-sm md:text-base text-gray-900 truncate" title={pharm.name}>{pharm.name}</h4>
                   <div className="flex items-center justify-between mt-3 bg-white p-2 rounded-md border border-gray-100">
-                    <span className="text-xs font-semibold text-gray-500">{pharm.dist}</span>
+                    <span className="text-xs font-semibold text-gray-500">{(pharm.distance / 1000).toFixed(1)} km</span>
                     <div className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full ${pharm.dot}`}></div>
-                      <span className={`text-[10px] md:text-xs font-bold uppercase tracking-wider ${pharm.color}`}>{pharm.status}</span>
+                      <div className={`w-2 h-2 rounded-full ${pharm.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className={`text-[10px] md:text-xs font-bold uppercase tracking-wider ${pharm.status === 'active' ? 'text-green-600' : 'text-red-500'}`}>
+                        {pharm.status === 'active' ? 'Open' : 'Closed'}
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="col-span-full py-8 text-center text-gray-500 border-2 border-dashed border-gray-100 rounded-2xl">
+                  No pharmacies found nearby
+                </div>
+              )}
             </div>
           </div>
 
@@ -196,19 +260,24 @@ export default function AppHomeDashboard() {
           <div className="space-y-4 bg-white p-5 md:p-6 lg:p-8 rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-gray-100">
             <div className="flex justify-between items-end border-b pb-3 mb-2">
               <h3 className="font-bold text-xl text-gray-900">Recent Orders</h3>
-              <span className="text-sm text-primary font-semibold hover:underline cursor-pointer">View All</span>
+              <Link href="/app/orders" className="text-sm text-primary font-semibold hover:underline cursor-pointer">View All</Link>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {recentOrders.map((order, i) => (
+              {recentOrders.length > 0 ? recentOrders.map((order, i) => (
                 <div key={i} className="bg-white border rounded-xl p-4 hover:shadow-md transition-shadow flex justify-between items-center group">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 group-hover:bg-primary/5 transition-colors">
                       <Clock className="w-5 h-5 text-gray-400 group-hover:text-primary" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-gray-900 truncate max-w-[150px] md:max-w-[200px]" title={order.items}>{order.items}</h4>
-                      <p className="text-xs font-medium text-gray-500 mt-1">{order.date} • <span className="text-gray-900 font-bold">{order.total}</span></p>
+                      <h4 className="text-sm font-bold text-gray-900 truncate max-w-[150px] md:max-w-[200px]" title={order.items?.map((it: any) => it.medicineName).join(', ')}>
+                        {order.items?.map((it: any) => it.medicineName).join(', ')}
+                      </h4>
+                      <p className="text-xs font-medium text-gray-500 mt-1">
+                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • 
+                        <span className="text-gray-900 font-bold ml-1">₹{order.total}</span>
+                      </p>
                     </div>
                   </div>
                   <Button size="sm" variant="outline" className="h-9 gap-2 text-primary border-primary/20 hover:bg-primary hover:text-white rounded-lg px-4 hidden sm:flex">
@@ -218,21 +287,16 @@ export default function AppHomeDashboard() {
                     <RefreshCw className="w-4 h-4" />
                   </Button>
                 </div>
-              ))}
+              )) : (
+                <div className="col-span-full py-6 text-center text-gray-400 text-sm">
+                  No recent orders found
+                </div>
+              )}
             </div>
           </div>
 
         </div>
       </div>
     </div>
-  );
-}
-
-// Minimal stub for user icon
-function UserCircleIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>
-    </svg>
   );
 }

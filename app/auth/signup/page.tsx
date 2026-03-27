@@ -138,7 +138,7 @@ export default function SignupPage() {
           captchaInput
         );
       }
-      router.push('/');
+      router.push('/app');
     } catch (err) {
       console.error('[v0] Signup failed:', err);
     }

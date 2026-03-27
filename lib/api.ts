@@ -298,7 +298,7 @@ export class ApiClient {
 
   // User endpoints
   static async getUserProfile() {
-    return this.request('/users/profile');
+    return this.request<any>('/users/profile');
   }
 
   static async updateUserProfile(name: string, email: string) {
@@ -334,7 +334,7 @@ export class ApiClient {
   }
 
   static async getAddresses() {
-    return this.request('/users/addresses');
+    return this.request<any[]>('/users/addresses');
   }
 
   static async addToFavorites(pharmacyId: string, medicineId: string) {
@@ -355,7 +355,7 @@ export class ApiClient {
       longitude: longitude.toString(),
       ...(maxDistance && { maxDistance: maxDistance.toString() }),
     });
-    return this.request(`/pharmacies/nearby?${params}`);
+    return this.request<any[]>(`/pharmacies/nearby?${params}`);
   }
 
   static async getPharmacyDetails(id: string) {
@@ -364,7 +364,7 @@ export class ApiClient {
 
   static async searchPharmacyMedicines(pharmacyId: string, query: string) {
     const params = new URLSearchParams({ query });
-    return this.request(`/pharmacies/${pharmacyId}/medicines?${params}`);
+    return this.request<any[]>(`/pharmacies/${pharmacyId}/medicines?${params}`);
   }
 
   // Order endpoints
@@ -390,7 +390,7 @@ export class ApiClient {
   }
 
   static async getUserOrders() {
-    return this.request('/orders/user/list');
+    return this.request<any[]>('/orders/user/list');
   }
 
   static async getOrderDetails(orderId: string) {
@@ -418,7 +418,7 @@ export class ApiClient {
 
   static async getPharmacyOrders(status?: string) {
     const params = new URLSearchParams(status ? { status } : {});
-    return this.request(`/pharmacies/orders/list?${params}`);
+    return this.request<any[]>(`/pharmacies/orders/list?${params}`);
   }
 
   static async updateOrderStatus(orderId: string, status: string, notes?: string) {
