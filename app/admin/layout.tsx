@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import AdminLayoutClient from '@/components/admin/AdminLayoutClient';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - SwasthRoute',
@@ -10,5 +11,5 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <AdminLayoutClient>{children}</AdminLayoutClient>;
 }

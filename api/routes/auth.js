@@ -257,8 +257,14 @@ router.post('/admin/login', async (req, res) => {
       return res.status(400).json({ error: 'Admin credentials required' });
     }
 
-    // Simple admin authentication - in production, store admin credentials separately
-    if (adminId === 'admin' && password === process.env.ADMIN_SECRET) {
+    // Console logs for debugging (remove in production)
+    console.log('Login attempt for admin:', adminId);
+    console.log('Env ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
+    const envSecretMatch = password === process.env.ADMIN_SECRET;
+    console.log('Password match:', envSecretMatch);
+
+    // Allow login with either 'admin' or the designated admin email
+    if ((adminId === process.env.ADMIN_EMAIL) && envSecretMatch) {
       const token = generateToken('admin', 'admin');
 
       res.json({
@@ -270,6 +276,7 @@ router.post('/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (error) {
+    console.error('Admin Login Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
