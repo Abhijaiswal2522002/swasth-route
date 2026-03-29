@@ -17,6 +17,8 @@ import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import MapBox from '@/components/MapBox';
+import ApiClient from '@/lib/api';
 
 interface Pharmacy {
   _id: string;
@@ -24,11 +26,17 @@ interface Pharmacy {
   address: {
     city: string;
     pincode: string;
+    street?: string;
+  };
+  location?: {
+    type: string;
+    coordinates: number[];
   };
   rating: number;
   distance: number;
   deliveryTime: number;
   isOpen: boolean;
+  status?: string;
 }
 
 export default function HomePage() {
@@ -36,45 +44,35 @@ export default function HomePage() {
   const { location } = useGeolocation();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([
-    {
-      _id: '1',
-      name: 'HealthCare Pharmacy',
-      address: { city: 'Mumbai', pincode: '400001' },
-      rating: 4.8,
-      distance: 2.3,
-      deliveryTime: 35,
-      isOpen: true,
-    },
-    {
-      _id: '2',
-      name: 'MediPlus Chemist',
-      address: { city: 'Mumbai', pincode: '400002' },
-      rating: 4.6,
-      distance: 3.1,
-      deliveryTime: 45,
-      isOpen: true,
-    },
-    {
-      _id: '3',
-      name: 'Emergency Pharmacy',
-      address: { city: 'Mumbai', pincode: '400003' },
-      rating: 4.9,
-      distance: 1.8,
-      deliveryTime: 25,
-      isOpen: true,
-    },
-    {
-      _id: '4',
-      name: 'Care Chemist Store',
-      address: { city: 'Mumbai', pincode: '400004' },
-      rating: 4.7,
-      distance: 2.5,
-      deliveryTime: 40,
-      isOpen: true,
-    },
-  ]);
-  const [filteredPharmacies, setFilteredPharmacies] = useState(pharmacies);
+  const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
+  const [filteredPharmacies, setFilteredPharmacies] = useState<Pharmacy[]>([]);
+  const [isLoadingPharmacies, setIsLoadingPharmacies] = useState(false);
+
+  useEffect(() => {
+    const fetchPharmacies = async () => {
+      if (location) {
+        setIsLoadingPharmacies(true);
+        try {
+          const response = await ApiClient.getNearbyPharmacies(location.latitude, location.longitude);
+          if (response.data) {
+            // Add some mock delivery data if missing from API
+            const enrichedData = (response.data as any[]).map(p => ({
+              ...p,
+              distance: parseFloat((Math.random() * 5 + 1).toFixed(1)), // Mock distance for now if not sent by backend
+              deliveryTime: Math.floor(Math.random() * 30 + 20),
+              isOpen: p.status === 'active'
+            }));
+            setPharmacies(enrichedData);
+          }
+        } catch (err) {
+          console.error("Failed to fetch nearby pharmacies:", err);
+        } finally {
+          setIsLoadingPharmacies(false);
+        }
+      }
+    };
+    fetchPharmacies();
+  }, [location]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -215,14 +213,60 @@ export default function HomePage() {
                     </div>
 
                     {location && (
-                      <div className="mb-8 p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-4">
-                        <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-bold text-lg">Location Enabled</p>
-                          <p className="text-muted-foreground leading-relaxed">
-                            Showing pharmacies near your location. Results are sorted using our real-time hyper-local routing algorithm.
-                          </p>
-                        </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+                         <div className="lg:col-span-2 space-y-4">
+                            <div className="flex items-center justify-between">
+                               <h3 className="text-xl font-bold flex items-center gap-2">
+                                  <MapPin className="w-5 h-5 text-primary" /> Live Pharmacy Map
+                               </h3>
+                               <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                                  {filteredPharmacies.length} Active Nodes
+                               </span>
+                            </div>
+                            <MapBox 
+                              center={{ lat: location.latitude, lng: location.longitude }}
+                              zoom={13}
+                              height="450px"
+                              markers={filteredPharmacies.map(p => ({
+                                id: p._id,
+                                name: p.name,
+                                lat: p.location?.coordinates[1] || location.latitude,
+                                lng: p.location?.coordinates[0] || location.longitude,
+                                address: `${p.address.city} - ${p.address.pincode}`,
+                                status: p.isOpen ? 'active' : 'inactive',
+                                rating: p.rating,
+                                color: p.isOpen ? 'text-primary' : 'text-muted-foreground'
+                              }))}
+                              className="shadow-2xl shadow-primary/5 border-primary/10"
+                            />
+                         </div>
+                         <div className="flex flex-col gap-6">
+                            <div className="p-6 rounded-2xl bg-primary/5 border border-primary/10 flex items-start gap-4 h-full">
+                              <AlertCircle className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="font-bold text-lg">Hyper-Local Routing</p>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Our algorithm has detected your presence. We are currently surfacing verified pharmacies within a 5km radius for immediate response.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                   <div className="flex justify-between text-xs font-black uppercase tracking-widest text-gray-400">
+                                      <span>Signal Strength</span>
+                                      <span className="text-primary">Optimized</span>
+                                   </div>
+                                   <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                                      <div className="h-full bg-primary w-[85%] animate-pulse" />
+                                   </div>
+                                </div>
+                              </div>
+                            </div>
+                            <Card className="p-6 border-primary/10 bg-gradient-to-br from-primary/5 to-transparent">
+                               <h4 className="font-bold mb-2">Emergency Mode</h4>
+                               <p className="text-xs text-muted-foreground mb-4">Click any marker on the map to see pharmacy details and stock status.</p>
+                               <Button size="sm" className="w-full text-[10px] font-black uppercase tracking-widest h-10">Recalibrate GPS</Button>
+                            </Card>
+                         </div>
                       </div>
                     )}
 

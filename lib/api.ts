@@ -453,10 +453,25 @@ export class ApiClient {
     return this.request<any>('/pharmacies/analytics');
   }
 
-  static async addMedicine(medicineName: string, quantity: number, price: number, reorderLevel: number) {
+  // Medicine catalog endpoints
+  static async getMedicinesCatalog(search?: string, category?: string) {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (category) params.append('category', category);
+    return this.request<any[]>(`/medicines?${params}`);
+  }
+
+  static async addMedicineToCatalog(data: any) {
+    return this.request('/medicines', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async addMedicine(medicineName: string, quantity: number, price: number, reorderLevel: number, medicineId?: string) {
     return this.request('/pharmacies/inventory/add', {
       method: 'POST',
-      body: JSON.stringify({ medicineName, quantity, price, reorderLevel }),
+      body: JSON.stringify({ medicineName, quantity, price, reorderLevel, medicineId }),
     });
   }
 

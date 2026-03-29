@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Clock, Map as MapIcon, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import ApiClient from '@/lib/api';
+import MapBox from '@/components/MapBox';
 
 interface PharmacyDoc {
   name: string;
@@ -28,6 +29,10 @@ interface Pharmacy {
   commissionRate: number;
   rating: number;
   documents?: PharmacyDoc[];
+  location?: {
+     type: string;
+     coordinates: number[];
+  };
   createdAt: string;
 }
 
@@ -36,6 +41,7 @@ export default function PharmacyApprovalPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
     const loadPharmacies = async () => {
@@ -136,32 +142,52 @@ export default function PharmacyApprovalPage() {
           </div>
         )}
 
-        {/* Status Filter */}
-        <div className="mb-6 flex gap-2 flex-wrap">
-          {['pending', 'active', 'inactive', 'suspended'].map((status) => (
-            <Button
-              key={status}
-              variant={selectedStatus === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setSelectedStatus(status);
-                setError(null);
-              }}
-              className="capitalize"
+        <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex gap-2">
+            {['pending', 'active', 'inactive', 'suspended'].map((status) => (
+              <Button
+                key={status}
+                variant={selectedStatus === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSelectedStatus(status);
+                  setError(null);
+                }}
+                className="capitalize"
+              >
+                {status}
+              </Button>
+            ))}
+          </div>
+          
+          <div className="flex border rounded-lg p-1 bg-muted/50">
+            <Button 
+               variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+               size="sm" 
+               className="h-8 px-3 rounded-md gap-2"
+               onClick={() => setViewMode('list')}
             >
-              {status}
+               <List className="w-4 h-4" /> List
             </Button>
-          ))}
+            <Button 
+               variant={viewMode === 'map' ? 'secondary' : 'ghost'} 
+               size="sm" 
+               className="h-8 px-3 rounded-md gap-2"
+               onClick={() => setViewMode('map')}
+            >
+               <MapIcon className="w-4 h-4" /> Map
+            </Button>
+          </div>
         </div>
 
-        {/* Pharmacies List */}
+        {/* Pharmacies Content */}
         {pharmacies.length === 0 ? (
           <Card className="border border-border">
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">No pharmacies found</p>
             </CardContent>
           </Card>
-        ) : (
+        ) : viewMode === 'list' ? (
           <div className="space-y-4">
             {pharmacies.map((pharmacy) => (
               <Card key={pharmacy._id} className="hover:shadow-md transition-shadow">
@@ -247,6 +273,41 @@ export default function PharmacyApprovalPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+             <Card className="p-0 overflow-hidden border-border bg-card">
+                <MapBox 
+                  height="600px"
+                  center={{ lat: 19.076, lng: 72.8777 }} // Center on Mumbai generally
+                  zoom={11}
+                  markers={pharmacies.map(p => ({
+                    id: p._id,
+                    name: p.name,
+                    lat: p.location?.coordinates[1] || 0,
+                    lng: p.location?.coordinates[0] || 0,
+                    address: `${p.address.city} - ${p.address.pincode}`,
+                    status: p.status,
+                    rating: p.rating,
+                    color: getStatusColor(p.status).includes('green') ? 'text-green-500' : 
+                           getStatusColor(p.status).includes('orange') ? 'text-orange-500' : 'text-red-500'
+                  })).filter(m => m.lat !== 0)}
+                />
+             </Card>
+             <div className="grid grid-cols-3 gap-4">
+                <Card className="p-4 bg-green-500/5 border-green-500/10">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-green-600">Active Nodes</p>
+                   <p className="text-2xl font-black text-green-700">{pharmacies.filter(p => p.status === 'active').length}</p>
+                </Card>
+                <Card className="p-4 bg-orange-500/5 border-orange-500/10">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-orange-600">Pending Review</p>
+                   <p className="text-2xl font-black text-orange-700">{pharmacies.filter(p => p.status === 'pending').length}</p>
+                </Card>
+                <Card className="p-4 bg-red-500/5 border-red-500/10">
+                   <p className="text-[10px] font-black uppercase tracking-widest text-red-600">Restricted</p>
+                   <p className="text-2xl font-black text-red-700">{pharmacies.filter(p => p.status === 'inactive' || p.status === 'suspended').length}</p>
+                </Card>
+             </div>
           </div>
         )}
       </main>

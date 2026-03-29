@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { verifyToken, verifyPharmacy } from '../middleware/auth.js';
 import Pharmacy from '../models/Pharmacy.js';
 import Order from '../models/Order.js';
@@ -33,6 +34,62 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
+
+// Get pharmacy profile (authenticated)
+router.get('/profile', verifyPharmacy, async (req, res) => {
+  try {
+    if (!req.pharmacy || !req.pharmacy.id) {
+      console.error('No pharmacy ID in request', req.pharmacy);
+      return res.status(401).json({ error: 'Authentication data missing' });
+    }
+    const pharmacy = await Pharmacy.findById(req.pharmacy.id).select('-password');
+    if (!pharmacy) {
+      console.log('Pharmacy not found for ID:', req.pharmacy.id);
+      return res.status(404).json({ error: 'Pharmacy not found' });
+    }
+    res.json(pharmacy);
+  } catch (error) {
+    console.error('Error fetching pharmacy profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update pharmacy profile
+router.put('/profile', verifyPharmacy, async (req, res) => {
+  try {
+    const { businessHours, address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude } = req.body;
+
+    const updateData = {
+      businessHours,
+      address,
+      licenseNumber,
+      licenseExpiry,
+      bankDetails,
+    };
+
+    // Update GeoJSON location if coordinates are provided
+    if (latitude !== undefined && longitude !== undefined) {
+      updateData.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)],
+      };
+    }
+
+    const pharmacy = await Pharmacy.findByIdAndUpdate(
+      req.pharmacy.id,
+      {
+        $set: updateData
+      },
+      { new: true }
+    ).select('-password');
+
+    res.json({ message: 'Profile updated', pharmacy });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // Get pharmacy details
 router.get('/:id', async (req, res) => {
   try {
@@ -60,7 +117,7 @@ router.get('/:id/medicines', async (req, res) => {
 
     if (query) {
       medicines = medicines.filter(med =>
-        med.medicineName.toLowerCase().includes(query.toLowerCase())
+        med.medicineName?.toLowerCase().includes(query.toLowerCase())
       );
     }
 
@@ -70,71 +127,61 @@ router.get('/:id/medicines', async (req, res) => {
   }
 });
 
-// Get pharmacy profile (authenticated)
-router.get('/profile', verifyPharmacy, async (req, res) => {
-  try {
-    const pharmacy = await Pharmacy.findById(req.pharmacy.id).select('-password');
-    if (!pharmacy) {
-      return res.status(404).json({ error: 'Pharmacy not found' });
-    }
-    res.json(pharmacy);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update pharmacy profile
-router.put('/profile', verifyPharmacy, async (req, res) => {
-  try {
-    const { businessHours, address, licenseNumber, licenseExpiry, bankDetails } = req.body;
-
-    const pharmacy = await Pharmacy.findByIdAndUpdate(
-      req.pharmacy.id,
-      {
-        businessHours,
-        address,
-        licenseNumber,
-        licenseExpiry,
-        bankDetails,
-      },
-      { new: true }
-    ).select('-password');
-
-    res.json({ message: 'Profile updated', pharmacy });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Update inventory
 router.post('/inventory/add', verifyPharmacy, async (req, res) => {
   try {
-    const { medicineName, quantity, price, reorderLevel } = req.body;
+    const { medicineId, medicineName, quantity, price, reorderLevel } = req.body;
+    console.log('Adding medicine to inventory:', { medicineId, medicineName, quantity, price, reorderLevel });
 
     const pharmacy = await Pharmacy.findById(req.pharmacy.id);
     if (!pharmacy) {
+      console.error('Pharmacy not found for ID:', req.pharmacy.id);
       return res.status(404).json({ error: 'Pharmacy not found' });
     }
 
-    const existingMedicine = pharmacy.inventory.find(
-      med => med.medicineName === medicineName
-    );
+    // Try to find by medicineId first, then by name
+    let existingMedicine = null;
+    if (medicineId) {
+      existingMedicine = pharmacy.inventory.find(
+        med => med.medicineId?.toString() === medicineId
+      );
+    }
+
+    if (!existingMedicine) {
+      existingMedicine = pharmacy.inventory.find(
+        med => med.medicineName?.toLowerCase() === medicineName?.toLowerCase()
+      );
+    }
+
+    const numQuantity = Number(quantity) || 0;
+    const numPrice = Number(price) || 0;
+    const numReorderLevel = Number(reorderLevel) || 10;
 
     if (existingMedicine) {
-      existingMedicine.quantity += quantity;
-      existingMedicine.price = price;
+      existingMedicine.quantity += numQuantity;
+      existingMedicine.price = numPrice;
+      if (medicineId) existingMedicine.medicineId = medicineId;
     } else {
       pharmacy.inventory.push({
+        medicineId,
         medicineName,
-        quantity,
-        price,
-        reorderLevel,
+        quantity: numQuantity,
+        price: numPrice,
+        reorderLevel: numReorderLevel,
       });
     }
 
+    if (medicineId && !mongoose.Types.ObjectId.isValid(medicineId)) {
+      console.warn('Invalid medicineId provided:', medicineId);
+      // Optional: handle as error or just ignore the ID
+    }
+
     await pharmacy.save();
+    console.log('Pharmacy inventory saved successfully. New inventory size:', pharmacy.inventory.length);
     res.json({ message: 'Inventory updated', inventory: pharmacy.inventory });
   } catch (error) {
+    console.error('CRITICAL ERROR in /inventory/add:', error);
     res.status(500).json({ error: error.message });
   }
 });

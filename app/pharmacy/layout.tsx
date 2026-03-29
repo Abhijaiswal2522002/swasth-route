@@ -19,6 +19,7 @@ export default function PharmacyLayout({ children }: { children: React.ReactNode
 
   const navItems = [
     { name: 'Dashboard', href: '/pharmacy', icon: LayoutDashboard },
+    { name: 'Medicines', href: '/pharmacy/medicines', icon: Package },
     { name: 'Orders', href: '/pharmacy/orders', icon: Package },
     { name: 'Earnings', href: '/pharmacy/earnings', icon: TrendingUp },
     { name: 'Settings', href: '/pharmacy/settings', icon: Settings },

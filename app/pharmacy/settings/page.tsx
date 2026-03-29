@@ -14,6 +14,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import ApiClient from '@/lib/api';
+import MapBox from '@/components/MapBox';
 
 const tabs = [
   { id: 'basic', label: 'Basic Info', icon: Store },
@@ -106,7 +107,8 @@ export default function PharmacySettingsPage() {
     try {
       const updateData = {
         ...formData,
-        // Map UI state to backend status if needed
+        latitude: formData.address.latitude,
+        longitude: formData.address.longitude
       };
       const res = await ApiClient.updatePharmacyProfile(updateData);
       if (!res.error) {
@@ -233,24 +235,57 @@ export default function PharmacySettingsPage() {
                     placeholder="Floor, Building, Street..."
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <FieldLabel>Precision Latitude</FieldLabel>
-                    <Input
-                      type="number"
-                      value={formData.address.latitude}
-                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, latitude: parseFloat(e.target.value) } })}
-                      className="h-14 rounded-2xl border-gray-100 font-black text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Precision Longitude</FieldLabel>
-                    <Input
-                      type="number"
-                      value={formData.address.longitude}
-                      onChange={(e) => setFormData({ ...formData, address: { ...formData.address, longitude: parseFloat(e.target.value) } })}
-                      className="h-14 rounded-2xl border-gray-100 font-black text-gray-900"
-                    />
+                <div className="space-y-4">
+                  <FieldLabel>Interactive Map Picker</FieldLabel>
+                  <MapBox
+                    isPicker={true}
+                    center={{
+                      lat: formData.address.latitude || 19.076,
+                      lng: formData.address.longitude || 72.8777
+                    }}
+                    onLocationSelect={(lat, lng) => {
+                      setFormData({
+                        ...formData,
+                        address: { ...formData.address, latitude: lat, longitude: lng }
+                      });
+                    }}
+                    height="350px"
+                    className="border-primary/10 shadow-inner bg-muted/50"
+                  />
+                  <div className="flex justify-between items-center px-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selected Coordinates</p>
+                      <p className="text-xs font-bold text-primary">
+                        {formData.address?.latitude && formData.address?.longitude ? (
+                          <p className="text-xs font-bold text-primary">
+                            {formData.address.latitude.toFixed(6)}, {formData.address.longitude.toFixed(6)}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400">Location not selected</p>
+                        )}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5"
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition((pos) => {
+                            setFormData({
+                              ...formData,
+                              address: {
+                                ...formData.address,
+                                latitude: pos.coords.latitude,
+                                longitude: pos.coords.longitude
+                              }
+                            });
+                          });
+                        }
+                      }}
+                    >
+                      Use Current GPS
+                    </Button>
                   </div>
                 </div>
               </div>
