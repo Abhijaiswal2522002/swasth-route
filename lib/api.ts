@@ -127,7 +127,7 @@ export async function pharmacySignup(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name, phone, email, password, address, city, 
+        name, phone, email, password, address, city,
         licenseNumber, latitude, longitude, captchaId, captchaAnswer,
       }),
     });
@@ -535,6 +535,21 @@ export class ApiClient {
 
   static async getAllUsers() {
     return this.request('/admin/users');
+  }
+
+  static async deactivateUser(userId: string) {
+    return this.request(`/admin/users/${userId}/deactivate`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    });
+  }
+
+
+  static async reactivateUser(userId: string) {
+    return this.request(`/admin/users/${userId}/reactivate`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    });
   }
 
   static async getAllOrders(status?: string) {

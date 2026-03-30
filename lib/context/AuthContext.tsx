@@ -18,6 +18,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<User>;
+  adminLogin: (adminId: string, password: string) => Promise<void>;
   signup: (name: string, phone: string, email: string, password: string) => Promise<{ message: string; redirect: string }>;
   pharmacySignup: (
     name: string,
@@ -77,6 +78,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Admin login — writes to the same keys (authToken / user) that ProtectedRoute reads
+  const adminLogin = useCallback(async (adminId: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${API_URL}/auth/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Admin login failed');
+
+      const adminUser: User = {
+        id: data.admin.id,
+        phone: '',
+        name: data.admin.name || 'Admin',
+        role: 'admin',
+      };
+
+      setUser(adminUser);
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('user', JSON.stringify(adminUser));
+    } catch (err: any) {
+      setError(err.message || 'Admin login failed');
       throw err;
     } finally {
       setLoading(false);
@@ -149,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     login,
+    adminLogin,
     signup,
     pharmacySignup,
     logout,

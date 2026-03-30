@@ -5,9 +5,10 @@ import { Lock, Shield, AlertCircle, Eye, EyeOff, ArrowRight, Activity } from 'lu
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import AuthManager from '@/lib/auth';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function AdminAuthPage() {
+  const { adminLogin } = useAuth();
   const [adminId, setAdminId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -20,7 +21,7 @@ export default function AdminAuthPage() {
     setIsLoading(true);
 
     try {
-      await AuthManager.loginAdmin(adminId, password);
+      await adminLogin(adminId, password);
       window.location.href = '/admin';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
