@@ -252,6 +252,26 @@ router.put('/users/:id/deactivate', verifyAdmin, async (req, res) => {
   }
 });
 
+// Update user role (e.g., promote to admin)
+router.put('/users/:id/role', verifyAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { role },
+      { new: true }
+    ).select('-password');
+
+    res.json({ message: `User role updated to ${role}`, user });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Reactivate user
 router.put('/users/:id/reactivate', verifyAdmin, async (req, res) => {
   try {

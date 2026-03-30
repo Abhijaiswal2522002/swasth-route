@@ -1,18 +1,21 @@
-import type { Metadata } from 'next';
+'use client';
+
 import AdminLayoutClient from '@/components/admin/AdminLayoutClient';
-
-export const metadata: Metadata = {
-  title: 'Admin Dashboard - SwasthRoute',
-  description: 'Manage pharmacies and platform analytics',
-};
-
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { usePathname } from 'next/navigation';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isAuthPage = pathname === '/admin/auth';
+
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
+
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <AdminLayoutClient>{children}</AdminLayoutClient>

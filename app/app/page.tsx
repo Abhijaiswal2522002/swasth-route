@@ -10,9 +10,20 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, MapPin, AlertCircle, Clock,
   ChevronRight, FileText, HeadphonesIcon,
-  RefreshCw, Store, Truck, LogOut
+  RefreshCw, Store, Truck, LogOut, Navigation
 } from 'lucide-react';
 import ApiClient from '@/lib/api';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { reverseGeocode, getCurrentLocation } from '@/lib/locationUtils';
+import MapBox from '@/components/MapBox';
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
@@ -22,61 +33,107 @@ export default function AppHomeDashboard() {
   const [nearbyPharmacies, setNearbyPharmacies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
+
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch user profile to get latest addresses
-        const profileRes = await ApiClient.getUserProfile();
-        if (profileRes.data) {
-          setProfile(profileRes.data);
-        }
-
-        // Fetch orders
-        const ordersRes = await ApiClient.getUserOrders();
-        if (ordersRes.data) {
-          const allOrders = ordersRes.data as any[];
-          // Find first active order (not delivered or cancelled)
-          const active = allOrders.find((o: any) => 
-            !['delivered', 'cancelled'].includes(o.status)
-          );
-          setActiveOrder(active);
-          
-          // Set recent orders (delivered or cancelled, max 2 for dashboard)
-          const recent = allOrders
-            .filter((o: any) => ['delivered', 'cancelled'].includes(o.status))
-            .slice(0, 2);
-          setRecentOrders(recent);
-        }
-
-        // Fetch nearby pharmacies
-        // Default to a central location if user doesn't have coordinates
-        let lat = 19.0760;
-        let lon = 72.8777;
-
-        const defaultAddr = (profileRes.data as any)?.addresses?.find((a: any) => a.isDefault) || (profileRes.data as any)?.addresses?.[0];
-        if (defaultAddr && defaultAddr.latitude && defaultAddr.longitude) {
-          lat = defaultAddr.latitude;
-          lon = defaultAddr.longitude;
-        }
-        
-        const pharmaciesRes = await ApiClient.getNearbyPharmacies(lat, lon);
-        if (pharmaciesRes.data) {
-          setNearbyPharmacies((pharmaciesRes.data as any[]).slice(0, 4));
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
-  }, []);
+  }, [user]);
 
-  const defaultAddress = profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch user profile
+      const profileRes = await ApiClient.getUserProfile();
+      if (profileRes.data) {
+        const profileData = profileRes.data as any;
+        setProfile(profileData);
+        
+        // Set initial selected location from default address
+        const defAddr = profileData.addresses?.find((a: any) => a.isDefault) || profileData.addresses?.[0];
+        if (defAddr) {
+          setSelectedLocation(defAddr);
+          fetchNearbyPharmacies(defAddr.latitude, defAddr.longitude);
+        } else {
+          // Default to Mumbai if no address
+          fetchNearbyPharmacies(19.0760, 72.8777);
+        }
+      }
+
+      // Fetch orders
+      const ordersRes = await ApiClient.getUserOrders();
+      if (ordersRes.data) {
+        const allOrders = ordersRes.data as any[];
+        const active = allOrders.find((o: any) => !['delivered', 'cancelled'].includes(o.status));
+        setActiveOrder(active);
+        const recent = allOrders.filter((o: any) => ['delivered', 'cancelled'].includes(o.status)).slice(0, 2);
+        setRecentOrders(recent);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchNearbyPharmacies = async (lat: number, lon: number) => {
+    try {
+      const pharmaciesRes = await ApiClient.getNearbyPharmacies(lat, lon);
+      if (pharmaciesRes.data) {
+        setNearbyPharmacies((pharmaciesRes.data as any[]).slice(0, 4));
+      }
+    } catch (error) {
+      console.error('Error fetching pharmacies:', error);
+    }
+  };
+
+  const handleUseCurrentLocation = async () => {
+    setIsLocating(true);
+    try {
+      const coords = await getCurrentLocation();
+      const address = await reverseGeocode(coords.lat, coords.lng);
+      if (address) {
+        const newLocation = {
+          label: 'Current Location',
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+          latitude: coords.lat,
+          longitude: coords.lng
+        };
+        setSelectedLocation(newLocation);
+        fetchNearbyPharmacies(coords.lat, coords.lng);
+        setIsLocationModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error getting current location:', error);
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  const handleManualLocationSelect = async (lat: number, lng: number) => {
+    const address = await reverseGeocode(lat, lng);
+    if (address) {
+      const newLocation = {
+        label: 'Selected Location',
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        latitude: lat,
+        longitude: lng
+      };
+      setSelectedLocation(newLocation);
+      fetchNearbyPharmacies(lat, lng);
+    }
+  };
+
+  const currentAddress = selectedLocation || profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
     label: 'Home',
-    street: 'Add an address to see nearby pharmacies'
+    street: 'Select a location to see nearby pharmacies'
   };
 
   if (isLoading && !profile) {
@@ -122,11 +179,14 @@ export default function AppHomeDashboard() {
           </div>
 
           {/* Location Bar */}
-          <Link href="/app/profile" className="flex items-center w-max max-w-full gap-2 text-sm md:text-base font-medium bg-black/15 px-4 py-2 border border-white/10 rounded-full backdrop-blur-md cursor-pointer hover:bg-black/25 transition-colors">
+          <div 
+            onClick={() => setIsLocationModalOpen(true)}
+            className="flex items-center w-max max-w-full gap-2 text-sm md:text-base font-medium bg-black/15 px-4 py-2 border border-white/10 rounded-full backdrop-blur-md cursor-pointer hover:bg-black/25 transition-colors"
+          >
             <MapPin className="w-4 h-4 md:w-5 md:h-5 fill-white/40 shrink-0" />
-            <span className="truncate text-white/95">{defaultAddress.label} • {defaultAddress.street.split(',')[0]}</span>
+            <span className="truncate text-white/95">{currentAddress.label} • {currentAddress.street?.split(',')[0]}</span>
             <ChevronRight className="w-3 h-3 md:w-4 md:h-4 opacity-70 text-white shrink-0" />
-          </Link>
+          </div>
         </div>
 
         {/* Search Bar & Action - Desktop Right Side */}
@@ -231,23 +291,54 @@ export default function AppHomeDashboard() {
               <Link href="/app/pharmacies" className="text-sm text-primary font-semibold hover:underline cursor-pointer">View Map</Link>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {nearbyPharmacies.length > 0 ? nearbyPharmacies.map((pharm, i) => (
-                <div key={i} className="bg-gray-50 border border-gray-100 rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-md hover:bg-white transition-all group">
-                  <div className="p-2.5 bg-white w-12 h-12 rounded-lg flex items-center justify-center mb-3 shadow-sm border border-gray-100 group-hover:border-primary/20">
-                    <Store className="w-6 h-6 text-primary" />
+                <Link 
+                  key={i} 
+                  href={`/app/pharmacies?selected=${pharm._id}`}
+                  className="bg-gray-50 border border-gray-100 rounded-2xl p-5 cursor-pointer hover:border-primary/40 hover:shadow-xl hover:bg-white transition-all group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Store className="w-12 h-12" />
                   </div>
-                  <h4 className="font-bold text-sm md:text-base text-gray-900 truncate" title={pharm.name}>{pharm.name}</h4>
-                  <div className="flex items-center justify-between mt-3 bg-white p-2 rounded-md border border-gray-100">
-                    <span className="text-xs font-semibold text-gray-500">{(pharm.distance / 1000).toFixed(1)} km</span>
-                    <div className="flex items-center gap-1.5">
+                  
+                  <div className="p-3 bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-sm border border-gray-100 group-hover:border-primary/20">
+                    <Store className="w-8 h-8 text-primary" />
+                  </div>
+                  
+                  <h4 className="font-extrabold text-sm md:text-base text-gray-900 truncate mb-1" title={pharm.name}>{pharm.name}</h4>
+                  
+                  <div className="flex flex-col gap-2 mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <Navigation className="w-3 h-3" /> {(pharm.distance / 1000).toFixed(1)} km
+                      </span>
+                      {pharm.distance < 1000 && (
+                        <Badge className="bg-primary/10 text-primary text-[8px] h-4 font-black uppercase tracking-widest border-none px-1.5">Nearby</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-1">
                       <div className={`w-2 h-2 rounded-full ${pharm.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                      <span className={`text-[10px] md:text-xs font-bold uppercase tracking-wider ${pharm.status === 'active' ? 'text-green-600' : 'text-red-500'}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${pharm.status === 'active' ? 'text-green-600' : 'text-red-500'}`}>
                         {pharm.status === 'active' ? 'Open' : 'Closed'}
                       </span>
                     </div>
                   </div>
-                </div>
+
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                    <span className="text-[10px] font-bold text-primary flex items-center gap-1 uppercase tracking-widest">Details <ChevronRight className="w-3 h-3" /></span>
+                    <a 
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${pharm.location?.coordinates?.[1]},${pharm.location?.coordinates?.[0]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 bg-gray-100 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/5 transition-all"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </Link>
               )) : (
                 <div className="col-span-full py-8 text-center text-gray-500 border-2 border-dashed border-gray-100 rounded-2xl">
                   No pharmacies found nearby
@@ -297,6 +388,100 @@ export default function AppHomeDashboard() {
 
         </div>
       </div>
+
+      {/* LOCATION SELECTION DIALOG */}
+      <Dialog open={isLocationModalOpen} onOpenChange={setIsLocationModalOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-8 bg-primary text-white">
+            <DialogTitle className="text-2xl font-black flex items-center gap-3">
+              <MapPin className="w-6 h-6" /> Change Delivery Location
+            </DialogTitle>
+            <DialogDescription className="text-white/70 font-medium pt-1">
+              Select or pick a custom location to see nearby pharmacies.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto scrollbar-hide">
+            {/* CURRENT LOCATION BUTTON */}
+            <Button 
+              onClick={handleUseCurrentLocation}
+              disabled={isLocating}
+              className="w-full h-14 rounded-2xl bg-primary/10 text-primary hover:bg-primary/20 border-none font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 transition-all"
+            >
+              {isLocating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+              {isLocating ? 'Detecting Location...' : 'Use My Current Location'}
+            </Button>
+
+            {/* SAVED ADDRESSES */}
+            {profile?.addresses && profile.addresses.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Saved Addresses</p>
+                {profile.addresses.map((addr: any, i: number) => (
+                  <div 
+                    key={i}
+                    onClick={() => {
+                      setSelectedLocation(addr);
+                      fetchNearbyPharmacies(addr.latitude, addr.longitude);
+                      setIsLocationModalOpen(false);
+                    }}
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-4 ${
+                      selectedLocation?._id === addr._id 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-gray-50 bg-white hover:border-primary/20'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${selectedLocation?._id === addr._id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
+                      <Store className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm text-gray-900 capitalize">{addr.label}</p>
+                      <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{addr.street}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* MANUAL MAP PICKER */}
+            <div className="space-y-3">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Or Pick Manually on Map</p>
+              <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm h-[200px]">
+                <MapBox 
+                  isPicker={true}
+                  center={{
+                    lat: selectedLocation?.latitude || 19.0760,
+                    lng: selectedLocation?.longitude || 72.8777
+                  }}
+                  onLocationSelect={handleManualLocationSelect}
+                  height="200px"
+                />
+              </div>
+              {selectedLocation?.label === 'Selected Location' && (
+                <div className="p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Detected Address</p>
+                  <p className="text-xs font-bold text-gray-700 line-clamp-2">{selectedLocation.street}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 bg-gray-50/50 flex flex-row gap-3 sm:justify-between border-t border-gray-100">
+             <Button 
+               variant="ghost" 
+               className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900"
+               onClick={() => setIsLocationModalOpen(false)}
+             >
+               Close
+             </Button>
+             <Button 
+               className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+               onClick={() => setIsLocationModalOpen(false)}
+             >
+               Confirm Location
+             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -15,18 +15,21 @@ router.get('/nearby', async (req, res) => {
       return res.status(400).json({ error: 'Latitude and longitude required' });
     }
 
-    const pharmacies = await Pharmacy.find({
-      location: {
-        $near: {
-          $geometry: {
+    const pharmacies = await Pharmacy.aggregate([
+      {
+        $geoNear: {
+          near: {
             type: 'Point',
             coordinates: [parseFloat(longitude), parseFloat(latitude)],
           },
-          $maxDistance: parseInt(maxDistance),
+          distanceField: 'distance',
+          maxDistance: parseInt(maxDistance),
+          spherical: true,
+          query: { status: 'active' },
         },
       },
-      status: 'active',
-    }).limit(50);
+      { $limit: 50 },
+    ]);
 
     res.json(pharmacies);
   } catch (error) {
@@ -54,18 +57,33 @@ router.get('/profile', verifyPharmacy, async (req, res) => {
   }
 });
 
+import { uploadPharmacy } from '../middleware/upload.js';
+
 // Update pharmacy profile
-router.put('/profile', verifyPharmacy, async (req, res) => {
+router.put('/profile', verifyPharmacy, uploadPharmacy.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'licenseImage', maxCount: 1 }
+]), async (req, res) => {
   try {
-    const { businessHours, address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude } = req.body;
+    const { address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude, businessHours } = req.body;
 
     const updateData = {
-      businessHours,
-      address,
+      address: typeof address === 'string' ? JSON.parse(address) : address,
       licenseNumber,
       licenseExpiry,
-      bankDetails,
+      bankDetails: typeof bankDetails === 'string' ? JSON.parse(bankDetails) : bankDetails,
+      businessHours: typeof businessHours === 'string' ? JSON.parse(businessHours) : businessHours,
     };
+
+    // Handle Cloudinary Uploads
+    if (req.files) {
+      if (req.files.image) {
+        updateData.image = req.files.image[0].path;
+      }
+      if (req.files.licenseImage) {
+        updateData.licenseImage = req.files.licenseImage[0].path;
+      }
+    }
 
     // Update GeoJSON location if coordinates are provided
     if (latitude !== undefined && longitude !== undefined) {
@@ -83,8 +101,9 @@ router.put('/profile', verifyPharmacy, async (req, res) => {
       { new: true }
     ).select('-password');
 
-    res.json({ message: 'Profile updated', pharmacy });
+    res.json({ message: 'Profile updated successfully', pharmacy });
   } catch (error) {
+    console.error('Profile Update Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

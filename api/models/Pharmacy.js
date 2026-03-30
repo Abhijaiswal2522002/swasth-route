@@ -37,13 +37,13 @@ const PharmacySchema = new mongoose.Schema(
       pincode: String,
     },
     businessHours: {
-      monday: { open: String, close: String },
-      tuesday: { open: String, close: String },
-      wednesday: { open: String, close: String },
-      thursday: { open: String, close: String },
-      friday: { open: String, close: String },
-      saturday: { open: String, close: String },
-      sunday: { open: String, close: String },
+      monday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      tuesday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      wednesday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      thursday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      friday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      saturday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
+      sunday: { open: { type: String, default: '09:00' }, close: { type: String, default: '21:00' } },
     },
     licenseNumber: String,
     licenseExpiry: Date,
@@ -80,7 +80,15 @@ const PharmacySchema = new mongoose.Schema(
     },
     commissionRate: {
       type: Number,
-      default: 10, // percentage
+      default: 10,
+    },
+    image: {
+      type: String,
+      default: '', 
+    },
+    licenseImage: {
+      type: String,
+      default: '', 
     },
     bankDetails: {
       accountName: String,

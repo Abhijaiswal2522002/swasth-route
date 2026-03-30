@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useEffect, Suspense } from 'react';
 
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();

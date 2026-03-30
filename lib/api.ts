@@ -197,6 +197,11 @@ export class ApiClient {
         headers.Authorization = `Bearer ${token}`;
       }
 
+      // If body is FormData, delete Content-Type to let browser set boundary
+      if (options.body instanceof FormData) {
+        delete headers['Content-Type'];
+      }
+
       const response = await fetch(url, {
         ...options,
         headers,
@@ -294,10 +299,11 @@ export class ApiClient {
     return this.request<any>('/users/profile');
   }
 
-  static async updateUserProfile(name: string, email: string) {
+  static async updateUserProfile(data: any) {
+    const isFormData = data instanceof FormData;
     return this.request('/users/profile', {
       method: 'PUT',
-      body: JSON.stringify({ name, email }),
+      body: isFormData ? data : JSON.stringify(data),
     });
   }
 

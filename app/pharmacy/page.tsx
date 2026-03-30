@@ -77,15 +77,29 @@ export default function PharmacyDashboard() {
   const activeOrders = orders.filter(o => ['accepted', 'preparing', 'out for delivery'].includes(o.status.toLowerCase()));
   const pastOrders = orders.filter(o => ['delivered', 'cancelled', 'rejected'].includes(o.status.toLowerCase())).slice(0, 5);
 
+  const isPending = profile?.status === 'pending';
   const shopDetails = {
     name: profile?.name || user?.name || 'ABC Medical Store',
     address: profile?.address?.street ? `${profile.address.street}, ${profile.address.city}` : 'Update your address in Settings',
-    status: profile?.status?.toUpperCase() || 'APPROVED'
+    status: profile?.status?.toUpperCase() || 'PENDING'
   };
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20 p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500">
       <div className="max-w-7xl mx-auto space-y-6">
+
+        {isPending && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 text-amber-800 shadow-sm animate-pulse-subtle">
+            <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-bold uppercase tracking-wider">Verification Pending</p>
+              <p className="text-xs font-medium opacity-80 mt-0.5">Your pharmacy is currently hidden from customers. It will become visible once an administrator reviews and approves your drug license.</p>
+            </div>
+            <Link href="/pharmacy/settings">
+              <Button size="sm" variant="outline" className="border-amber-200 text-amber-800 hover:bg-amber-100 rounded-xl h-9 font-black text-[10px] uppercase tracking-widest whitespace-nowrap">Check Settings</Button>
+            </Link>
+          </div>
+        )}
 
         {/* TOP SECTION: Shop Identity */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -101,9 +115,15 @@ export default function PharmacyDashboard() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-green-50 px-6 py-2.5 rounded-2xl border border-green-100 shadow-sm shadow-green-100/50">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span className="text-xs font-black text-green-700 uppercase tracking-[0.1em]">Status: {shopDetails.status}</span>
+          <div className={`flex items-center gap-3 px-6 py-2.5 rounded-2xl border shadow-sm ${
+            isPending 
+              ? 'bg-amber-50 border-amber-100 shadow-amber-100/50' 
+              : 'bg-green-50 border-green-100 shadow-green-100/50'
+          }`}>
+            {isPending ? <Clock className="w-5 h-5 text-amber-600" /> : <CheckCircle2 className="w-5 h-5 text-green-600" />}
+            <span className={`text-xs font-black uppercase tracking-[0.1em] ${
+              isPending ? 'text-amber-700' : 'text-green-700'
+            }`}>Status: {shopDetails.status}</span>
           </div>
         </div>
 

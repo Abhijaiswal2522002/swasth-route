@@ -279,24 +279,38 @@ router.post('/admin/login', async (req, res) => {
       return res.status(400).json({ error: 'Admin credentials required' });
     }
 
-    // Console logs for debugging (remove in production)
-    console.log('Login attempt for admin:', adminId);
-    console.log('Env ADMIN_EMAIL:', process.env.ADMIN_EMAIL);
-    const envSecretMatch = password === process.env.ADMIN_SECRET;
-    console.log('Password match:', envSecretMatch);
+    // 1. Try to find in User collection first (DB-backed admin)
+    let admin = await User.findOne({
+      $or: [{ email: adminId }, { phone: adminId }],
+      role: 'admin'
+    });
 
-    // Allow login with either 'admin' or the designated admin email
-    if ((adminId === process.env.ADMIN_EMAIL) && envSecretMatch) {
-      const token = generateToken('admin', 'admin');
-
-      res.json({
-        message: 'Admin login successful',
-        token,
-        admin: { id: 'admin', role: 'admin' },
-      });
-    } else {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (admin) {
+      const isPasswordValid = await bcrypt.compare(password, admin.password);
+      if (isPasswordValid) {
+        const token = generateToken(admin._id, 'admin');
+        return res.json({
+          message: 'Admin login successful',
+          token,
+          admin: { id: admin._id, name: admin.name, role: 'admin' },
+        });
+      }
     }
+
+    // 2. Fallback to Environment Variables (for initial setup/recovery)
+    const isEnvEmailMatch = adminId === process.env.ADMIN_EMAIL;
+    const isEnvSecretMatch = password === process.env.ADMIN_SECRET;
+
+    if (isEnvEmailMatch && isEnvSecretMatch) {
+      const token = generateToken('admin_env', 'admin');
+      return res.json({
+        message: 'Admin login successful (Env Profile)',
+        token,
+        admin: { id: 'admin_env', name: 'System Admin', role: 'admin' },
+      });
+    }
+
+    return res.status(401).json({ error: 'Invalid admin credentials' });
   } catch (error) {
     console.error('Admin Login Error:', error);
     res.status(500).json({ error: error.message });

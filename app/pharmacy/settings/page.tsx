@@ -67,7 +67,21 @@ export default function PharmacySettingsPage() {
     address: { street: '', city: '', state: '', pincode: '', latitude: 0, longitude: 0 },
     licenseNumber: '',
     licenseExpiry: '',
-    businessHours: { open: '08:00', close: '22:00' },
+    businessHours: {
+      monday: { open: '09:00', close: '21:00' },
+      tuesday: { open: '09:00', close: '21:00' },
+      wednesday: { open: '09:00', close: '21:00' },
+      thursday: { open: '09:00', close: '21:00' },
+      friday: { open: '09:00', close: '21:00' },
+      saturday: { open: '09:00', close: '21:00' },
+      sunday: { open: '09:00', close: '21:00' },
+    },
+    bankDetails: {
+      accountName: '',
+      accountNumber: '',
+      ifscCode: '',
+      bankName: '',
+    },
     isOpen: true
   });
 
@@ -84,14 +98,37 @@ export default function PharmacySettingsPage() {
       if (res.data) {
         const data = res.data as any;
         setProfile(data);
+        
+        // Ensure location is extracted from GeoJSON
+        const lat = data.location?.coordinates?.[1] || 0;
+        const lng = data.location?.coordinates?.[0] || 0;
+
         setFormData({
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          address: data.address || { street: '', city: '', state: '', pincode: '', latitude: 0, longitude: 0 },
+          address: {
+            ...(data.address || { street: '', city: '', state: '', pincode: '' }),
+            latitude: lat,
+            longitude: lng
+          },
           licenseNumber: data.licenseNumber || '',
           licenseExpiry: data.licenseExpiry ? new Date(data.licenseExpiry).toISOString().split('T')[0] : '',
-          businessHours: data.businessHours || { open: '08:00', close: '22:00' },
+          businessHours: data.businessHours || {
+            monday: { open: '09:00', close: '21:00' },
+            tuesday: { open: '09:00', close: '21:00' },
+            wednesday: { open: '09:00', close: '21:00' },
+            thursday: { open: '09:00', close: '21:00' },
+            friday: { open: '09:00', close: '21:00' },
+            saturday: { open: '09:00', close: '21:00' },
+            sunday: { open: '09:00', close: '21:00' },
+          },
+          bankDetails: data.bankDetails || {
+            accountName: '',
+            accountNumber: '',
+            ifscCode: '',
+            bankName: '',
+          },
           isOpen: data.status === 'active'
         });
       }
@@ -102,17 +139,91 @@ export default function PharmacySettingsPage() {
     }
   };
 
+  const fetchAddressFromCoords = async (lat: number, lng: number) => {
+    try {
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (!token) return;
+
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&limit=1`
+      );
+      const data = await response.json();
+      
+      if (data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        const placeName = feature.place_name;
+        
+        // Try to parse components
+        let city = '', state = '', pincode = '';
+        feature.context?.forEach((ctx: any) => {
+          if (ctx.id.startsWith('place')) city = ctx.text;
+          if (ctx.id.startsWith('region')) state = ctx.text;
+          if (ctx.id.startsWith('postcode')) pincode = ctx.text;
+        });
+
+        setFormData((prev: any) => ({
+          ...prev,
+          address: {
+            ...prev.address,
+            street: placeName,
+            city: city || prev.address.city,
+            state: state || prev.address.state,
+            pincode: pincode || prev.address.pincode,
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    }
+  };
+
+  const [shopImage, setShopImage] = useState<File | null>(null);
+  const [licenseImage, setLicenseImage] = useState<File | null>(null);
+  const [previews, setPreviews] = useState({ shop: '', license: '' });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'shop' | 'license') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (type === 'shop') {
+        setShopImage(file);
+        setPreviews(p => ({ ...p, shop: URL.createObjectURL(file) }));
+      } else {
+        setLicenseImage(file);
+        setPreviews(p => ({ ...p, license: URL.createObjectURL(file) }));
+      }
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const updateData = {
-        ...formData,
-        latitude: formData.address.latitude,
-        longitude: formData.address.longitude
-      };
-      const res = await ApiClient.updatePharmacyProfile(updateData);
+      const { address, ...rest } = formData;
+      
+      const formDataToSend = new FormData();
+      
+      // Append primitives and objects
+      formDataToSend.append('licenseNumber', rest.licenseNumber || '');
+      formDataToSend.append('licenseExpiry', rest.licenseExpiry || '');
+      formDataToSend.append('isOpen', String(formData.isOpen));
+      formDataToSend.append('latitude', String(address.latitude));
+      formDataToSend.append('longitude', String(address.longitude));
+      
+      formDataToSend.append('address', JSON.stringify({
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode
+      }));
+      
+      formDataToSend.append('bankDetails', JSON.stringify(rest.bankDetails));
+      formDataToSend.append('businessHours', JSON.stringify(rest.businessHours));
+
+      // Append files if selected
+      if (shopImage) formDataToSend.append('image', shopImage);
+      if (licenseImage) formDataToSend.append('licenseImage', licenseImage);
+      
+      const res = await ApiClient.updatePharmacyProfile(formDataToSend);
       if (!res.error) {
-        // Success notification or feedback
         fetchProfile();
       }
     } catch (error) {
@@ -144,8 +255,12 @@ export default function PharmacySettingsPage() {
           <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">Pharmacy Control</h1>
           <p className="text-gray-500 font-medium max-w-lg">Fine-tune your shop presence, operational hours, and regulatory compliance data.</p>
         </div>
-        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 rounded-xl px-4 py-1.5 h-max font-black text-[10px] uppercase tracking-widest">
-          Role: Verified Pharmacy
+        <Badge variant="outline" className={`rounded-xl px-4 py-1.5 h-max font-black text-[10px] uppercase tracking-widest ${
+          profile?.status === 'active' 
+            ? 'bg-green-50 text-green-700 border-green-200' 
+            : 'bg-amber-50 text-amber-700 border-amber-200'
+        }`}>
+          Status: {profile?.status?.toUpperCase() || 'PENDING'}
         </Badge>
       </div>
 
@@ -174,7 +289,38 @@ export default function PharmacySettingsPage() {
           {/* BASIC INFO */}
           {activeTab === 'basic' && (
             <Section title="🏪 Identity & Contact" onSave={handleSave} isSaving={isSaving}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-4">
+              <div className="flex flex-col md:flex-row gap-10 mt-6 items-start">
+                <div className="w-full md:w-1/3 space-y-4">
+                  <FieldLabel>Shop Profile Photo</FieldLabel>
+                  <div 
+                    onClick={() => document.getElementById('shopImageInput')?.click()}
+                    className="relative aspect-square rounded-[2.5rem] bg-gray-50 border-3 border-dashed border-gray-100 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all overflow-hidden group"
+                  >
+                    {(previews.shop || profile?.image) ? (
+                      <img 
+                        src={previews.shop || profile?.image} 
+                        className="w-full h-full object-cover" 
+                        alt="Shop" 
+                      />
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-gray-300 group-hover:text-primary transition-colors">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-6 text-center leading-tight">Click to upload storefront photo</p>
+                      </>
+                    )}
+                    <input 
+                      id="shopImageInput" 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => handleFileChange(e, 'shop')} 
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 grid grid-cols-1 gap-6 w-full">
                 <div className="space-y-1">
                   <FieldLabel>Shop Commercial Name</FieldLabel>
                   <div className="relative group">
@@ -213,8 +359,9 @@ export default function PharmacySettingsPage() {
                   </div>
                 </div>
               </div>
-            </Section>
-          )}
+            </div>
+          </Section>
+        )}
 
           {/* LOCATION */}
           {activeTab === 'location' && (
@@ -248,6 +395,7 @@ export default function PharmacySettingsPage() {
                         ...formData,
                         address: { ...formData.address, latitude: lat, longitude: lng }
                       });
+                      fetchAddressFromCoords(lat, lng);
                     }}
                     height="350px"
                     className="border-primary/10 shadow-inner bg-muted/50"
@@ -272,14 +420,16 @@ export default function PharmacySettingsPage() {
                       onClick={() => {
                         if (navigator.geolocation) {
                           navigator.geolocation.getCurrentPosition((pos) => {
+                            const { latitude, longitude } = pos.coords;
                             setFormData({
                               ...formData,
                               address: {
                                 ...formData.address,
-                                latitude: pos.coords.latitude,
-                                longitude: pos.coords.longitude
+                                latitude,
+                                longitude
                               }
                             });
+                            fetchAddressFromCoords(latitude, longitude);
                           });
                         }
                       }}
@@ -320,14 +470,32 @@ export default function PharmacySettingsPage() {
               </div>
               <div>
                 <FieldLabel>Updated Proof of License</FieldLabel>
-                <div className="border-3 border-dashed border-gray-50 rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-gray-300 hover:border-primary/40 hover:bg-primary/5 cursor-pointer transition-all group">
-                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:text-primary transition-colors">
-                    <UploadCloud className="w-8 h-8" />
-                  </div>
-                  <div className="text-center">
+                <div 
+                  onClick={() => document.getElementById('licenseImageInput')?.click()}
+                  className="border-3 border-dashed border-gray-50 rounded-[2rem] p-12 flex flex-col items-center justify-center gap-4 text-gray-300 hover:border-primary/40 hover:bg-primary/5 cursor-pointer transition-all group relative overflow-hidden min-h-[300px]"
+                >
+                  {(previews.license || profile?.licenseImage) ? (
+                    <img 
+                      src={previews.license || profile?.licenseImage} 
+                      className="absolute inset-0 w-full h-full object-contain p-4 group-hover:opacity-20 transition-opacity" 
+                      alt="License" 
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:text-primary transition-colors">
+                      <UploadCloud className="w-8 h-8" />
+                    </div>
+                  )}
+                  <div className={`text-center z-10 transition-opacity ${(previews.license || profile?.licenseImage) ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                     <p className="text-sm font-black text-gray-900 uppercase tracking-widest">Digital Registry File</p>
-                    <p className="text-[10px] font-bold text-gray-400 mt-1">PDF OR HIGH-RES SCAN (MAX 10MB)</p>
+                    <p className="text-[10px] font-bold text-gray-400 mt-1">JPG, PNG OR HIGH-RES SCAN (MAX 10MB)</p>
                   </div>
+                  <input 
+                    id="licenseImageInput" 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => handleFileChange(e, 'license')} 
+                  />
                 </div>
               </div>
             </Section>
@@ -351,25 +519,44 @@ export default function PharmacySettingsPage() {
                   }
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-8 mt-6">
-                <div>
-                  <FieldLabel>Opening Protocols</FieldLabel>
-                  <Input
-                    type="time"
-                    value={formData.businessHours.open}
-                    onChange={(e) => setFormData({ ...formData, businessHours: { ...formData.businessHours, open: e.target.value } })}
-                    className="h-14 rounded-2xl border-gray-100 font-black text-gray-900"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>Closing Protocols</FieldLabel>
-                  <Input
-                    type="time"
-                    value={formData.businessHours.close}
-                    onChange={(e) => setFormData({ ...formData, businessHours: { ...formData.businessHours, close: e.target.value } })}
-                    className="h-14 rounded-2xl border-gray-100 font-black text-gray-900"
-                  />
-                </div>
+              <div className="space-y-4 mt-6">
+                {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                  <div key={day} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white border border-gray-100 rounded-2xl gap-4">
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-900 w-24">{day}</p>
+                    <div className="flex items-center gap-4 flex-1 justify-end">
+                      <div className="flex-1 max-w-[150px]">
+                        <FieldLabel>Open</FieldLabel>
+                        <Input
+                          type="time"
+                          value={formData.businessHours[day]?.open || '09:00'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            businessHours: {
+                              ...formData.businessHours,
+                              [day]: { ...formData.businessHours[day], open: e.target.value }
+                            }
+                          })}
+                          className="h-11 rounded-xl border-gray-100 font-bold text-xs"
+                        />
+                      </div>
+                      <div className="flex-1 max-w-[150px]">
+                        <FieldLabel>Close</FieldLabel>
+                        <Input
+                          type="time"
+                          value={formData.businessHours[day]?.close || '21:00'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            businessHours: {
+                              ...formData.businessHours,
+                              [day]: { ...formData.businessHours[day], close: e.target.value }
+                            }
+                          })}
+                          className="h-11 rounded-xl border-gray-100 font-bold text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Section>
           )}
@@ -396,12 +583,55 @@ export default function PharmacySettingsPage() {
                   </div>
                 </div>
               </Section>
-              <Section title="🏦 Settlement Node">
-                <div className="p-12 bg-gray-50/50 rounded-[2.5rem] border border-dashed border-gray-100 flex flex-col items-center text-center gap-4">
-                  <div className="p-5 bg-white rounded-3xl shadow-sm text-gray-200"><IndianRupee className="w-10 h-10" /></div>
+              <Section title="🏦 Settlement Details" onSave={handleSave} isSaving={isSaving}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mt-4">
                   <div className="space-y-1">
-                    <p className="text-lg font-black text-gray-900 tracking-tight">Financial Integration Looming</p>
-                    <p className="text-sm text-gray-400 font-medium max-w-xs mx-auto">Bank payout nodes will be activated once your Drug License is re-verified by the admin panel.</p>
+                    <FieldLabel>Bank Name</FieldLabel>
+                    <Input
+                      value={formData.bankDetails.bankName}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bankDetails: { ...formData.bankDetails, bankName: e.target.value }
+                      })}
+                      className="h-14 rounded-2xl border-gray-100 font-bold text-gray-900"
+                      placeholder="e.g. HDFC Bank"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldLabel>Account Holder Name</FieldLabel>
+                    <Input
+                      value={formData.bankDetails.accountName}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bankDetails: { ...formData.bankDetails, accountName: e.target.value }
+                      })}
+                      className="h-14 rounded-2xl border-gray-100 font-bold text-gray-900"
+                      placeholder="e.g. Wellness Forever Pvt Ltd"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldLabel>Account Number</FieldLabel>
+                    <Input
+                      value={formData.bankDetails.accountNumber}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bankDetails: { ...formData.bankDetails, accountNumber: e.target.value }
+                      })}
+                      className="h-14 rounded-2xl border-gray-100 font-bold text-gray-900"
+                      placeholder="0000 0000 0000 0000"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldLabel>IFSC Code</FieldLabel>
+                    <Input
+                      value={formData.bankDetails.ifscCode}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        bankDetails: { ...formData.bankDetails, ifscCode: e.target.value }
+                      })}
+                      className="h-14 rounded-2xl border-gray-100 font-bold text-gray-900 uppercase"
+                      placeholder="HDFC0000XXX"
+                    />
                   </div>
                 </div>
               </Section>

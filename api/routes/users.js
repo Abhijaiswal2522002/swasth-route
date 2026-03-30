@@ -17,17 +17,26 @@ router.get('/profile', verifyToken, async (req, res) => {
   }
 });
 
+import { uploadUser } from '../middleware/upload.js';
+
 // Update user profile
-router.put('/profile', verifyToken, async (req, res) => {
+router.put('/profile', verifyToken, uploadUser.single('avatar'), async (req, res) => {
   try {
     const { name, email } = req.body;
+    
+    const updateData = { name, email };
+    
+    if (req.file) {
+      updateData.avatar = req.file.path;
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, email },
+      updateData,
       { new: true }
     ).select('-password');
 
-    res.json({ message: 'Profile updated', user });
+    res.json({ message: 'Profile updated successfully', user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
