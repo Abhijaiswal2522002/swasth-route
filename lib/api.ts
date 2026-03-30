@@ -150,7 +150,15 @@ export async function pharmacySignup(
 export async function verifyEmail(token: string): Promise<{ message: string }> {
   const url = `${API_URL}/auth/verify-email?token=${token}`;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { redirect: 'follow' });
+
+    // Guard: if the server returned HTML instead of JSON (e.g. an accidental redirect),
+    // give a human-readable error rather than a cryptic JSON parse failure.
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('Verification failed. Please try signing up again or contact support.');
+    }
+
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || 'Verification failed');

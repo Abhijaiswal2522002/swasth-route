@@ -111,9 +111,9 @@ router.get('/verify-email', async (req, res) => {
       sendAdminNotification(pharmacy);
     }
 
-    // Redirect to login with success message
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/auth/login?verified=true`);
+    // Return JSON so the frontend fetch() call can parse the result.
+    // The frontend page handles the redirect to /auth/login after success.
+    res.json({ message: 'Email verified successfully. You can now log in.', role });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
