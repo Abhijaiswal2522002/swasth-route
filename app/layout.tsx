@@ -5,6 +5,7 @@ import './globals.css'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
 import { AuthProvider } from '@/lib/context/AuthContext'
+import { CartProvider } from '@/lib/context/CartContext'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -41,13 +42,15 @@ export default function RootLayout({
     <html lang="en">
       <body className="font-sans antialiased">
         <AuthProvider>
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          <CartProvider>
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </CartProvider>
         </AuthProvider>
         <Analytics />
       </body>

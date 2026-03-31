@@ -4,14 +4,20 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pill, Search, RefreshCw, Store, MapPin } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
+import { useCart } from '@/lib/context/CartContext';
 
-export default function MedicinesPage() {
+function MedicinesContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchParams = useSearchParams();
+  const pharmacyId = searchParams.get('pharmacy');
+  const initialQuery = searchParams.get('query') || '';
+  const { addToCart } = useCart();
+
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [pharmacies, setPharmacies] = useState<any[]>([]);
   const [allMedicines, setAllMedicines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,31 +32,52 @@ export default function MedicinesPage() {
       const fetchData = async () => {
         setIsLoading(true);
         try {
-          // Get user location or default to Mumbai
-          const lat = user.addresses?.[0]?.latitude || 19.0760;
-          const lon = user.addresses?.[0]?.longitude || 72.8777;
-
-          const res = await ApiClient.getNearbyPharmacies(lat, lon, 10000); // 10km range
-          if (res.data) {
-            const pharmacyData = res.data as any[];
-            setPharmacies(pharmacyData);
-            
-            // Flatten all medicines from all nearby pharmacies
-            const meds: any[] = [];
-            pharmacyData.forEach((pharm: any) => {
+          if (pharmacyId) {
+            const res = await ApiClient.getPharmacyDetails(pharmacyId);
+            if (res.data) {
+              const pharm = res.data as any;
+              setPharmacies([pharm]);
+              
+              const meds: any[] = [];
               if (pharm.inventory) {
                 pharm.inventory.forEach((item: any) => {
                   meds.push({
                     ...item,
                     pharmacyName: pharm.name,
                     pharmacyId: pharm._id || pharm.id,
-                    distance: pharm.distance,
+                    distance: 0,
                     status: pharm.status
                   });
                 });
               }
-            });
-            setAllMedicines(meds);
+              setAllMedicines(meds);
+            }
+          } else {
+            // Get user location or default to Mumbai
+            const lat = user.addresses?.[0]?.latitude || 19.0760;
+            const lon = user.addresses?.[0]?.longitude || 72.8777;
+
+            const res = await ApiClient.getNearbyPharmacies(lat, lon, 10000); // 10km range
+            if (res.data) {
+              const pharmacyData = res.data as any[];
+              setPharmacies(pharmacyData);
+              
+              const meds: any[] = [];
+              pharmacyData.forEach((pharm: any) => {
+                if (pharm.inventory) {
+                  pharm.inventory.forEach((item: any) => {
+                    meds.push({
+                      ...item,
+                      pharmacyName: pharm.name,
+                      pharmacyId: pharm._id || pharm.id,
+                      distance: pharm.distance,
+                      status: pharm.status
+                    });
+                  });
+                }
+              });
+              setAllMedicines(meds);
+            }
           }
         } catch (error) {
           console.error('Error fetching medicines:', error);
@@ -60,7 +87,7 @@ export default function MedicinesPage() {
       };
       fetchData();
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, pharmacyId]);
 
   const filteredMedicines = allMedicines.filter((medicine) =>
     medicine.medicineName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -70,7 +97,9 @@ export default function MedicinesPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-        <p className="text-muted-foreground font-medium">Scanning nearby pharmacies...</p>
+        <p className="text-muted-foreground font-medium">
+          {pharmacyId ? 'Scanning pharmacy inventory...' : 'Scanning nearby pharmacies...'}
+        </p>
       </div>
     );
   }
@@ -79,7 +108,11 @@ export default function MedicinesPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
       <div className="mb-10 text-center md:text-left">
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">Browse Medicines</h1>
-        <p className="text-gray-500 max-w-2xl mb-8 font-medium">Find and order medicines from verified pharmacies near your current location.</p>
+        <p className="text-gray-500 max-w-2xl mb-8 font-medium">
+          {pharmacyId 
+            ? `Viewing inventory for ${pharmacies[0]?.name || 'the selected pharmacy'}.` 
+            : 'Find and order medicines from verified pharmacies near your current location.'}
+        </p>
         
         <div className="relative max-w-3xl">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -111,10 +144,12 @@ export default function MedicinesPage() {
                       }`}>
                       {medicine.quantity > 0 ? 'In Stock' : 'Out of Stock'}
                     </span>
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {(medicine.distance / 1000).toFixed(1)} km
-                    </div>
+                    {medicine.distance !== undefined && medicine.distance > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {(medicine.distance / 1000).toFixed(1)} km
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -134,6 +169,12 @@ export default function MedicinesPage() {
                   <Button
                     size="lg"
                     disabled={medicine.quantity <= 0}
+                    onClick={() => addToCart({
+                      medicineId: medicine._id || medicine.id,
+                      pharmacyId: medicine.pharmacyId,
+                      medicineName: medicine.medicineName,
+                      price: medicine.price
+                    })}
                     className="rounded-2xl px-6 font-black shadow-lg shadow-primary/20 h-12"
                   >
                     Add to Cart
@@ -153,5 +194,18 @@ export default function MedicinesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MedicinesPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-muted-foreground font-medium">Loading...</p>
+      </div>
+    }>
+      <MedicinesContent />
+    </Suspense>
   );
 }

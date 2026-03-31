@@ -32,6 +32,7 @@ export default function AppHomeDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [nearbyPharmacies, setNearbyPharmacies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -199,6 +200,17 @@ export default function AppHomeDashboard() {
               </div>
               <Input
                 placeholder="Search medicines, health products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (searchQuery.trim()) {
+                      window.location.href = `/app/medicines?query=${encodeURIComponent(searchQuery.trim())}`;
+                    } else {
+                      window.location.href = '/app/medicines';
+                    }
+                  }
+                }}
                 className="w-full bg-white text-gray-900 pl-12 pr-4 border-0 h-14 md:h-16 rounded-xl shadow-inner focus-visible:ring-4 focus-visible:ring-[#0b8a4f] transition-all text-base focus-visible:outline-none"
               />
             </div>
@@ -295,7 +307,7 @@ export default function AppHomeDashboard() {
               {nearbyPharmacies.length > 0 ? nearbyPharmacies.map((pharm, i) => (
                 <Link 
                   key={i} 
-                  href={`/app/pharmacies?selected=${pharm._id}`}
+                  href={`/app/medicines?pharmacy=${pharm._id || pharm.id}`}
                   className="bg-gray-50 border border-gray-100 rounded-2xl p-5 cursor-pointer hover:border-primary/40 hover:shadow-xl hover:bg-white transition-all group relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">

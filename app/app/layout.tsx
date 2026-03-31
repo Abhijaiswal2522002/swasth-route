@@ -3,12 +3,14 @@
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Pill, Clock, UserCircle, LogOut } from 'lucide-react';
+import { Home, Pill, Clock, UserCircle, LogOut, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useCart } from '@/lib/context/CartContext';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { cartCount } = useCart();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -20,6 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { name: 'Home', href: '/app', icon: Home },
     { name: 'Medicines', href: '/app/medicines', icon: Pill },
+    { name: 'Cart', href: '/app/cart', icon: ShoppingCart },
     { name: 'Orders', href: '/app/orders', icon: Clock },
     { name: 'Profile', href: '/app/profile', icon: UserCircle },
   ];
@@ -48,6 +51,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     >
                       <item.icon className="w-4 h-4 mr-2" />
                       {item.name}
+                      {item.name === 'Cart' && cartCount > 0 && (
+                        <span className="ml-2 bg-destructive text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                          {cartCount}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -84,11 +92,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
+                className={`relative flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
                   isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${isActive ? 'fill-primary/20 bg-primary/10 rounded-full p-1 w-7 h-7' : ''}`} />
+                <div className="relative">
+                  <item.icon className={`w-5 h-5 ${isActive ? 'fill-primary/20 bg-primary/10 rounded-full p-1 w-7 h-7' : ''}`} />
+                  {item.name === 'Cart' && cartCount > 0 && (
+                    <span className="absolute -top-1 -right-2 bg-destructive text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                </div>
                 <span className={`text-[10px] sm:text-xs font-medium ${isActive ? 'font-bold' : ''}`}>{item.name}</span>
               </Link>
             );

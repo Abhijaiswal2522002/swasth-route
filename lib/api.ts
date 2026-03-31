@@ -302,6 +302,37 @@ export class ApiClient {
     });
   }
 
+  // Cart endpoints
+  static async getCart() {
+    return this.request<any>('/cart');
+  }
+
+  static async addToCart(medicineId: string, pharmacyId: string, medicineName: string, price: number) {
+    return this.request('/cart/add', {
+      method: 'POST',
+      body: JSON.stringify({ medicineId, pharmacyId, medicineName, price }),
+    });
+  }
+
+  static async updateCartQuantity(medicineId: string, pharmacyId: string, quantity: number) {
+    return this.request('/cart/update', {
+      method: 'PUT',
+      body: JSON.stringify({ medicineId, pharmacyId, quantity }),
+    });
+  }
+
+  static async removeFromCart(medicineId: string, pharmacyId: string) {
+    return this.request(`/cart/item/${medicineId}/${pharmacyId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async clearCart() {
+    return this.request('/cart/clear', {
+      method: 'DELETE',
+    });
+  }
+
   // User endpoints
   static async getUserProfile() {
     return this.request<any>('/users/profile');
