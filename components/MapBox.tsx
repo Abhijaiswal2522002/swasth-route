@@ -78,7 +78,7 @@ export default function MapBox({
         <NavigationControl position="top-left" />
 
         {/* Regular Markers */}
-        {!isPicker && markers.map((marker, index) => (
+        {markers.map((marker, index) => (
           <Marker
             key={marker.id || index}
             latitude={marker.lat}
@@ -112,7 +112,7 @@ export default function MapBox({
               if (onLocationSelect) onLocationSelect(lat, lng);
             }}
           >
-            <div className="text-primary animate-pulse transition-transform active:scale-110">
+            <div className="text-red-500 animate-pulse transition-transform active:scale-110">
               <MapPin className="w-10 h-10 drop-shadow-xl" fill="currentColor" fillOpacity={0.3} />
             </div>
           </Marker>

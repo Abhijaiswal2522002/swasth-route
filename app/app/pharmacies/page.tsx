@@ -107,7 +107,7 @@ function PharmaciesContent() {
     name: p.name,
     status: p.status,
     rating: p.rating,
-    color: p.status === 'active' ? 'text-primary' : 'text-gray-400'
+    color: p.status === 'active' ? 'text-green-500' : 'text-gray-400'
   }));
 
   return (
