@@ -455,9 +455,10 @@ export class ApiClient {
   }
 
   static async updatePharmacyProfile(data: any) {
+    const isFormData = data instanceof FormData;
     return this.request('/pharmacies/profile', {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: isFormData ? data : JSON.stringify(data),
     });
   }
 

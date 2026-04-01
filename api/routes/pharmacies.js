@@ -68,12 +68,15 @@ router.put('/profile', verifyPharmacy, uploadPharmacy.fields([
     const { address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude, businessHours } = req.body;
 
     const updateData = {
-      address: typeof address === 'string' ? JSON.parse(address) : address,
+      address: typeof address === 'string' && address !== 'undefined' ? JSON.parse(address) : address,
       licenseNumber,
-      licenseExpiry,
-      bankDetails: typeof bankDetails === 'string' ? JSON.parse(bankDetails) : bankDetails,
-      businessHours: typeof businessHours === 'string' ? JSON.parse(businessHours) : businessHours,
+      bankDetails: typeof bankDetails === 'string' && bankDetails !== 'undefined' ? JSON.parse(bankDetails) : bankDetails,
+      businessHours: typeof businessHours === 'string' && businessHours !== 'undefined' ? JSON.parse(businessHours) : businessHours,
     };
+
+    if (licenseExpiry && licenseExpiry.trim() !== '') {
+      updateData.licenseExpiry = licenseExpiry;
+    }
 
     // Handle Cloudinary Uploads
     if (req.files) {

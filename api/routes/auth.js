@@ -201,9 +201,10 @@ router.post('/pharmacy/signup', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const existingPharmacy = await Pharmacy.findOne({ phone });
+    const existingPharmacy = await Pharmacy.findOne({ $or: [{ phone }, { email }] });
     if (existingPharmacy) {
-      return res.status(409).json({ error: 'Phone number already registered' });
+      const field = existingPharmacy.phone === phone ? 'Phone number' : 'Email';
+      return res.status(409).json({ error: `${field} already registered` });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -236,13 +237,13 @@ router.post('/pharmacy/signup', async (req, res) => {
 // Pharmacy Login
 router.post('/pharmacy/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'Phone and password required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const pharmacy = await Pharmacy.findOne({ phone });
+    const pharmacy = await Pharmacy.findOne({ email });
     if (!pharmacy) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
