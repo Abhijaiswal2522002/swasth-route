@@ -12,7 +12,7 @@ interface AuthResponse {
     id: string;
     phone: string;
     name: string;
-    role: 'user' | 'pharmacy' | 'admin';
+    role: 'user' | 'pharmacy' | 'admin' | 'rider';
     email?: string;
   };
 }
@@ -587,6 +587,57 @@ export class ApiClient {
   static async getAllOrders(status?: string) {
     const params = new URLSearchParams(status ? { status } : {});
     return this.request(`/admin/orders?${params}`);
+  }
+
+  // Rider endpoints
+  static async registerRider(data: { vehicleType: string; vehicleNumber: string; latitude: number; longitude: number }) {
+    return this.request('/rider/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async getRiderProfile() {
+    return this.request<any>('/rider/profile');
+  }
+
+  static async updateRiderStatus(status: 'offline' | 'available' | 'busy') {
+    return this.request('/rider/status', {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async updateRiderLocation(latitude: number, longitude: number) {
+    return this.request('/rider/location', {
+      method: 'PUT',
+      body: JSON.stringify({ latitude, longitude }),
+    });
+  }
+
+  static async getNearbyOrders() {
+    return this.request<any[]>('/rider/nearby-orders');
+  }
+
+  static async acceptRiderOrder(orderId: string) {
+    return this.request(`/rider/orders/${orderId}/accept`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    });
+  }
+
+  static async pickupOrder(orderId: string) {
+    return this.request(`/rider/orders/${orderId}/pickup`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    });
+  }
+
+  static async deliverOrder(orderId: string) {
+    return this.request(`/rider/orders/${orderId}/deliver`, {
+      method: 'PUT',
+      body: JSON.stringify({}),
+    });
   }
 }
 

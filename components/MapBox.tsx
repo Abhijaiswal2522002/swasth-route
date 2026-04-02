@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Map, { Marker, Popup, NavigationControl, FullscreenControl, GeolocateControl, MapMouseEvent, ViewStateChangeEvent, MarkerDragEvent } from 'react-map-gl';
-import { MapPin } from 'lucide-react';
+import { MapPin, Bike } from 'lucide-react';
+import SmoothMarker from './SmoothMarker';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 interface MapBoxProps {
   markers?: any[];
+  riders?: any[];
   center?: { lat: number; lng: number };
   zoom?: number;
   isPicker?: boolean;
@@ -19,6 +21,7 @@ interface MapBoxProps {
 
 export default function MapBox({ 
   markers = [], 
+  riders = [],
   center = { lat: 19.076, lng: 72.8777 }, // Default Mumbai
   zoom = 12,
   isPicker = false,
@@ -97,6 +100,17 @@ export default function MapBox({
               />
             </div>
           </Marker>
+        ))}
+
+        {/* Rider Markers (Smoothly animated) */}
+        {riders.map((rider) => (
+          <SmoothMarker
+            key={rider.id}
+            id={rider.id}
+            latitude={rider.lat}
+            longitude={rider.lng}
+            color={rider.color}
+          />
         ))}
 
         {/* Picker Marker */}

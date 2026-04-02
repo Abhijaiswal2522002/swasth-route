@@ -177,6 +177,9 @@ router.get('/analytics/dashboard', verifyAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalPharmacies = await Pharmacy.countDocuments({ status: 'active' });
+    const totalRiders = await User.countDocuments({ role: 'rider' });
+    const activeRiders = await User.countDocuments({ role: 'rider', isActive: true });
+    
     const totalOrders = await Order.countDocuments();
     const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
 
@@ -188,12 +191,13 @@ router.get('/analytics/dashboard', verifyAdmin, async (req, res) => {
     res.json({
       totalUsers,
       totalPharmacies,
-      activePharmacies: totalPharmacies,
+      totalRiders,
+      activeRiders,
       totalOrders,
       deliveredOrders,
       totalRevenue,
       pendingPharmacies,
-      orderFulfillmentRate: (deliveredOrders / totalOrders * 100).toFixed(2) + '%',
+      orderFulfillmentRate: (deliveredOrders / (totalOrders || 1) * 100).toFixed(2) + '%',
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

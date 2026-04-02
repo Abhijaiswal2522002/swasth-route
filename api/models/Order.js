@@ -36,8 +36,12 @@ const OrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'processing', 'dispatched', 'delivered', 'cancelled'],
+      enum: ['pending', 'accepted', 'processing', 'assigned', 'picked_up', 'delivered', 'cancelled'],
       default: 'pending',
+    },
+    riderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Rider',
     },
     isEmergency: {
       type: Boolean,

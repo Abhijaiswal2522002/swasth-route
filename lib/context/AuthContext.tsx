@@ -7,7 +7,7 @@ interface User {
   id: string;
   phone: string;
   name: string;
-  role: 'user' | 'pharmacy' | 'admin';
+  role: 'user' | 'pharmacy' | 'admin' | 'rider';
   email?: string;
   addresses?: any[];
 }

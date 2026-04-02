@@ -32,10 +32,7 @@ export default function HeroSection() {
         <div className="max-w-7xl mx-auto px-6 py-12 md:py-24 grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-10">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-semibold animate-fade-in">
-                <ShieldCheck className="w-4 h-4" />
-                <span>Trusted by 10,000+ Users</span>
-              </div>
+
 
               <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1]">
                 Your Health,{' '}
