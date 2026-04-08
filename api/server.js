@@ -15,6 +15,7 @@ import { createServer } from 'http';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import connectDB from './config/mongodb.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +120,12 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`SwasthRoute API running on port ${PORT}`);
-});
+
+const startServer = async () => {
+  await connectDB();
+  httpServer.listen(PORT, () => {
+    console.log(`SwasthRoute API running on port ${PORT}`);
+  });
+};
+
+startServer();
