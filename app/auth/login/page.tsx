@@ -69,6 +69,8 @@ function LoginContent() {
         router.push('/admin');
       } else if (user.role === 'pharmacy') {
         router.push('/pharmacy');
+      } else if (user.role === 'rider') {
+        router.push('/rider');
       } else {
         router.push('/app');
       }

@@ -13,7 +13,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy')) {
+  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy') || pathname?.startsWith('/rider')) {
     return null;
   }
 
@@ -35,18 +35,18 @@ export default function Navbar() {
     setIsOpen(false);
   };
 
-  const navLinks = user?.role === 'pharmacy' 
+  const navLinks = user?.role === 'pharmacy'
     ? [
-        { label: 'Dashboard', action: () => router.push('/') },
-        { label: 'Orders', action: () => router.push('/app/orders') },
-        { label: 'Inventory', action: () => router.push('/app/inventory') },
-      ]
+      { label: 'Dashboard', action: () => router.push('/') },
+      { label: 'Orders', action: () => router.push('/app/orders') },
+      { label: 'Inventory', action: () => router.push('/app/inventory') },
+    ]
     : [
-        { label: 'Home', action: () => router.push('/') },
-        { label: 'How It Works', action: () => scrollToSection('how-it-works') },
-        { label: 'For Pharmacies', action: () => scrollToSection('for-pharmacies') },
-        { label: 'Contact', action: () => scrollToSection('contact') },
-      ];
+      { label: 'Home', action: () => router.push('/') },
+      { label: 'How It Works', action: () => scrollToSection('how-it-works') },
+      { label: 'For Pharmacies', action: () => scrollToSection('for-pharmacies') },
+      { label: 'Contact', action: () => scrollToSection('contact') },
+    ];
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur-md border-b border-primary/10 shadow-sm">

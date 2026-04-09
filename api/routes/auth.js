@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
+import Rider from '../models/Rider.js';
 import { sendAdminNotification, sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerification } from '../utils/email.js';
 
 const router = express.Router();
@@ -109,6 +110,22 @@ router.get('/verify-email', async (req, res) => {
       await pharmacy.save();
       sendWelcomeEmail(pharmacy.email, pharmacy.name, 'pharmacy');
       sendAdminNotification(pharmacy);
+    } else if (role === 'rider') {
+      const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
+      if (existingUser) return res.status(409).json({ error: 'User already verified and registered' });
+
+      const user = new User({ phone, name, email, password, role: 'rider', isVerified: true });
+      await user.save();
+
+      const rider = new Rider({
+        userId: user._id,
+        vehicleType: rest.vehicleType,
+        vehicleNumber: rest.vehicleNumber,
+        currentLocation: rest.location || { type: 'Point', coordinates: [0, 0] },
+        status: 'offline'
+      });
+      await rider.save();
+      sendWelcomeEmail(user.email, user.name, 'rider');
     }
 
     // Return JSON so the frontend fetch() call can parse the result.
@@ -130,7 +147,7 @@ router.post('/user/login', async (req, res) => {
 
     // 1. Try to find in User collection
     let account = await User.findOne({ email });
-    let role = 'user';
+    let role = account ? (account.role || 'user') : null;
 
     // 2. If not found, try to find in Pharmacy collection
     if (!account) {
@@ -233,6 +250,50 @@ router.post('/pharmacy/signup', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Rider Sign Up
+router.post('/rider/signup', async (req, res) => {
+  try {
+    const {
+      name, phone, email, password, vehicleType, vehicleNumber, latitude, longitude
+    } = req.body;
+
+    if (!name || !phone || !email || !password || !vehicleType || !vehicleNumber) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
+    if (existingUser) {
+      const field = existingUser.phone === phone ? 'Phone number' : 'Email';
+      return res.status(409).json({ error: `${field} already registered` });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate Verification Token
+    const verificationToken = jwt.sign(
+      {
+        name, phone, email, password: hashedPassword,
+        vehicleType, vehicleNumber,
+        location: { type: 'Point', coordinates: [longitude || 0, latitude || 0] },
+        role: 'rider'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Send verification email
+    await sendEmailVerification(email, name, 'rider', verificationToken);
+
+    res.status(200).json({
+      message: 'Verification email sent. Please check your inbox.',
+      redirect: '/auth/login'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Pharmacy Login
 router.post('/pharmacy/login', async (req, res) => {

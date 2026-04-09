@@ -33,6 +33,16 @@ interface AuthContextType {
     captchaId: string,
     captchaAnswer: string
   ) => Promise<{ message: string; redirect: string }>;
+  riderSignup: (
+    name: string,
+    phone: string,
+    email: string,
+    password: string,
+    vehicleType: string,
+    vehicleNumber: string,
+    latitude: number,
+    longitude: number
+  ) => Promise<{ message: string; redirect: string }>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -162,6 +172,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const riderSignup = useCallback(async (
+    name: string,
+    phone: string,
+    email: string,
+    password: string,
+    vehicleType: string,
+    vehicleNumber: string,
+    latitude: number,
+    longitude: number
+  ): Promise<{ message: string; redirect: string }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { riderSignup: apiRiderSignup } = await import('@/lib/api');
+      const response = await apiRiderSignup(
+        name, phone, email, password, vehicleType, vehicleNumber, latitude, longitude
+      );
+      return response as { message: string; redirect: string };
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.error || err?.response?.data?.message || err.message || 'Rider registration failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await apiLogout();
@@ -185,6 +222,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     adminLogin,
     signup,
     pharmacySignup,
+    riderSignup,
     logout,
     clearError,
   };

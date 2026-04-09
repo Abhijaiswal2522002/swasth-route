@@ -1,9 +1,3 @@
-/**
- * Utility for location-related operations.
- */
-
-export const REVERSE_GEOCODE_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places/';
-
 export interface LatLng {
   lat: number;
   lng: number;
@@ -18,18 +12,48 @@ export interface AddressComponents {
 }
 
 /**
- * Reverse geocodes coordinates into a human-readable address using Mapbox API.
+ * Reverse geocodes coordinates into a human-readable address using Geoapify API.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<AddressComponents | null> {
   try {
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const token = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
     if (!token) {
-      console.error('Mapbox token missing');
-      return null;
+      console.warn('Geoapify token missing, falling back to Mapbox if available');
+      // Optional fallback to Mapbox if desired, but user asked for Geoapify
+      return reverseGeocodeMapbox(lat, lng);
     }
 
     const response = await fetch(
-      `${REVERSE_GEOCODE_URL}${lng},${lat}.json?access_token=${token}&limit=1`
+      `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${token}`
+    );
+    const data = await response.json();
+
+    if (data.features && data.features.length > 0) {
+      const properties = data.features[0].properties;
+      return {
+        street: properties.street || properties.formatted.split(',')[0],
+        city: properties.city || properties.municipality || '',
+        state: properties.state || '',
+        pincode: properties.postcode || '',
+        fullAddress: properties.formatted,
+      };
+    }
+  } catch (error) {
+    console.error('Error reverse geocoding with Geoapify:', error);
+  }
+  return null;
+}
+
+/**
+ * Fallback Mapbox reverse geocoding
+ */
+async function reverseGeocodeMapbox(lat: number, lng: number): Promise<AddressComponents | null> {
+  try {
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    if (!token) return null;
+
+    const response = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${token}&limit=1`
     );
     const data = await response.json();
 
@@ -43,7 +67,6 @@ export async function reverseGeocode(lat: number, lng: number): Promise<AddressC
         fullAddress: feature.place_name,
       };
 
-      // Extract components from Mapbox context
       feature.context?.forEach((ctx: any) => {
         if (ctx.id.startsWith('place')) address.city = ctx.text;
         if (ctx.id.startsWith('region')) address.state = ctx.text;
@@ -53,10 +76,11 @@ export async function reverseGeocode(lat: number, lng: number): Promise<AddressC
       return address;
     }
   } catch (error) {
-    console.error('Error reverse geocoding:', error);
+    console.error('Error reverse geocoding with Mapbox:', error);
   }
   return null;
 }
+
 
 /**
  * Gets current browser location if permission is granted.

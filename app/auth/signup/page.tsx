@@ -10,14 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { getCaptcha, CaptchaData } from '@/lib/api';
 import { useEffect } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, MapPin, Loader2, Bike } from 'lucide-react';
+import { reverseGeocode } from '@/lib/locationUtils';
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup, pharmacySignup, loading, error, clearError } = useAuth();
+  const { signup, pharmacySignup, riderSignup, loading, error, clearError } = useAuth();
   const { location: geoPerm, loading: geoLoading, error: geoError } = useGeolocation();
   const [step, setStep] = useState<'selection' | 'form'>('selection');
-  const [role, setRole] = useState<'user' | 'pharmacy'>('user');
+  const [role, setRole] = useState<'user' | 'pharmacy' | 'rider'>('user');
+  const [isDetectingAddress, setIsDetectingAddress] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -27,6 +29,8 @@ export default function SignupPage() {
     address: '',
     city: '',
     licenseNumber: '',
+    vehicleType: 'bike',
+    vehicleNumber: '',
   });
   const [localError, setLocalError] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState<CaptchaData | null>(null);
@@ -82,6 +86,17 @@ export default function SignupPage() {
       }
     }
 
+    if (role === 'rider') {
+      if (!formData.vehicleType) {
+        setLocalError('Vehicle Type is required');
+        return false;
+      }
+      if (!formData.vehicleNumber.trim()) {
+        setLocalError('Vehicle Number is required');
+        return false;
+      }
+    }
+
     // Indian phone number validation (10 digits)
     const phoneRegex = /^[6-9]\d{9}$/;
     if (!phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
@@ -123,8 +138,19 @@ export default function SignupPage() {
       let response;
       if (role === 'user') {
         response = await signup(formData.name, formData.phone.replace(/\D/g, ''), formData.email, formData.password);
+      } else if (role === 'rider') {
+        const coords = geoPerm || { latitude: 0, longitude: 0 };
+        response = await riderSignup(
+          formData.name,
+          formData.phone.replace(/\D/g, ''),
+          formData.email,
+          formData.password,
+          formData.vehicleType,
+          formData.vehicleNumber,
+          coords.latitude,
+          coords.longitude
+        );
       } else {
-        // Map captured geolocation to signup call
         response = await pharmacySignup(
           formData.name,
           formData.phone.replace(/\D/g, ''),
@@ -139,7 +165,7 @@ export default function SignupPage() {
           captchaInput
         );
       }
-      
+
       // Redirect to login with success message from backend
       router.push(`/auth/login?msg=${encodeURIComponent(response.message)}`);
     } catch (err) {
@@ -186,6 +212,20 @@ export default function SignupPage() {
                 Register your store to fulfill emergency medicine requests
               </span>
             </Button>
+
+            <Button
+              onClick={() => {
+                setRole('rider');
+                setStep('form');
+              }}
+              variant="outline"
+              className="h-24 flex flex-col items-center justify-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 group transition-all"
+            >
+              <span className="text-lg font-bold group-hover:text-primary">Delivery Rider</span>
+              <span className="text-xs text-muted-foreground text-center line-clamp-2 px-2">
+                Join our delivery fleet and earn on every medicine delivery
+              </span>
+            </Button>
           </div>
 
           <div className="pt-4 text-center">
@@ -214,12 +254,14 @@ export default function SignupPage() {
             ← Back
           </Button>
           <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            {role === 'user' ? 'Customer' : 'Pharmacy'} Sign Up
+            {role === 'user' ? 'Customer' : role === 'pharmacy' ? 'Pharmacy' : 'Rider'} Sign Up
           </div>
           <p className="text-muted-foreground text-sm">
             {role === 'user'
               ? 'Join SwasthRoute for fast medicine delivery'
-              : 'Register your pharmacy with the platform'}
+              : role === 'pharmacy'
+                ? 'Register your pharmacy with the platform'
+                : 'Join as a delivery partner and start earning'}
           </p>
         </div>
 
@@ -232,13 +274,44 @@ export default function SignupPage() {
               id="name"
               name="name"
               type="text"
-              placeholder={role === 'user' ? 'John Doe' : 'LifeCare Pharmacy'}
+              placeholder={role === 'user' ? 'John Doe' : role === 'pharmacy' ? 'LifeCare Pharmacy' : 'Alex Rider'}
               value={formData.name}
               onChange={handleChange}
               disabled={loading}
               className="bg-input/50 border-primary/20 focus:border-primary"
             />
           </div>
+
+          {role === 'rider' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="vehicleType" className="text-sm font-medium">Vehicle Type *</label>
+                <select
+                  id="vehicleType"
+                  name="vehicleType"
+                  value={formData.vehicleType}
+                  onChange={(e) => setFormData(p => ({ ...p, vehicleType: e.target.value }))}
+                  className="w-full h-10 px-3 bg-input/50 border border-primary/20 rounded-md focus:border-primary outline-none text-sm"
+                >
+                  <option value="bike">Bike</option>
+                  <option value="scooter">Scooter</option>
+                  <option value="bicycle">Bicycle</option>
+                  <option value="car">Car</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="vehicleNumber" className="text-sm font-medium">License Plate *</label>
+                <Input
+                  id="vehicleNumber"
+                  name="vehicleNumber"
+                  placeholder="MH 01 AB 1234"
+                  value={formData.vehicleNumber}
+                  onChange={handleChange}
+                  className="bg-input/50 border-primary/20 focus:border-primary"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label htmlFor="phone" className="text-sm font-medium">
@@ -328,7 +401,7 @@ export default function SignupPage() {
                 />
               </div>
 
-              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 space-y-1">
+              <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                     <span className={`w-2 h-2 rounded-full ${geoPerm ? 'bg-green-500' : geoError ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`} />
@@ -339,9 +412,42 @@ export default function SignupPage() {
                   </span>
                 </div>
                 {geoPerm && (
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    Lat: {geoPerm.latitude.toFixed(4)}, Lng: {geoPerm.longitude.toFixed(4)}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-muted-foreground truncate flex-1">
+                      Lat: {geoPerm.latitude.toFixed(4)}, Lng: {geoPerm.longitude.toFixed(4)}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        setIsDetectingAddress(true);
+                        try {
+                          const addressData = await reverseGeocode(geoPerm.latitude, geoPerm.longitude);
+                          if (addressData) {
+                            setFormData(prev => ({
+                              ...prev,
+                              address: addressData.fullAddress,
+                              city: addressData.city || prev.city
+                            }));
+                          }
+                        } catch (err) {
+                          console.error('Failed to detect address:', err);
+                        } finally {
+                          setIsDetectingAddress(false);
+                        }
+                      }}
+                      disabled={isDetectingAddress}
+                      className="h-7 px-2 text-[10px] gap-1 rounded-md border-primary/20 hover:bg-primary/10"
+                    >
+                      {isDetectingAddress ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <MapPin className="w-3 h-3" />
+                      )}
+                      Detect Address
+                    </Button>
+                  </div>
                 )}
               </div>
 

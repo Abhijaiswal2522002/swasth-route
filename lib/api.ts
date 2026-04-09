@@ -147,6 +147,43 @@ export async function pharmacySignup(
   }
 }
 
+export async function riderSignup(
+  name: string,
+  phone: string,
+  email: string,
+  password: string,
+  vehicleType: string,
+  vehicleNumber: string,
+  latitude: number,
+  longitude: number
+): Promise<SignupResponse> {
+  const url = `${API_URL}/auth/rider/signup`;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name, phone, email, password, vehicleType, vehicleNumber, latitude, longitude
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || data.error || 'Rider registration failed');
+    }
+
+    return {
+      message: data.message,
+      redirect: data.redirect || '/auth/login',
+    };
+  } catch (error) {
+    console.error('[v0] Rider Signup error:', error);
+    throw error;
+  }
+}
+
 export async function verifyEmail(token: string): Promise<{ message: string }> {
   const url = `${API_URL}/auth/verify-email?token=${token}`;
   try {
@@ -270,6 +307,31 @@ export class ApiClient {
         longitude,
         captchaId,
         captchaAnswer,
+      }),
+    });
+  }
+
+  static async riderSignUp(
+    name: string,
+    phone: string,
+    email: string,
+    password: string,
+    vehicleType: string,
+    vehicleNumber: string,
+    latitude: number,
+    longitude: number
+  ) {
+    return this.request('/auth/rider/signup', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        password,
+        vehicleType,
+        vehicleNumber,
+        latitude,
+        longitude,
       }),
     });
   }
