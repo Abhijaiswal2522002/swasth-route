@@ -1,0 +1,224 @@
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { io, Socket } from 'socket.io-client';
+import ApiClient from '@/lib/api';
+import { toast } from 'sonner';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+interface RiderContextType {
+  profile: any;
+  nearbyOrders: any[];
+  activeOrder: any;
+  isLoading: boolean;
+  isOnline: boolean;
+  currentLocation: { lat: number; lng: number } | null;
+  earningsHistory: any[];
+  isRegistering: boolean;
+  handleToggleOnline: (checked: boolean) => Promise<void>;
+  handleAcceptOrder: (orderId: string) => Promise<void>;
+  handlePickup: () => Promise<void>;
+  handleDeliver: () => Promise<void>;
+  handleRegister: (data: { vehicleType: string; vehicleNumber: string }) => Promise<void>;
+  fetchRiderData: () => Promise<void>;
+}
+
+const RiderContext = createContext<RiderContextType | undefined>(undefined);
+
+export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+
+  const [profile, setProfile] = useState<any>(null);
+  const [nearbyOrders, setNearbyOrders] = useState<any[]>([]);
+  const [activeOrder, setActiveOrder] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [earningsHistory, setEarningsHistory] = useState<any[]>([]);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const socketRef = useRef<Socket | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (user && user.role === 'rider') {
+      fetchRiderData();
+      initSocket();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  const initSocket = () => {
+    if (!socketRef.current) {
+      socketRef.current = io(SOCKET_URL);
+      console.log('Rider Socket initialized');
+    }
+  };
+
+  const fetchRiderData = async () => {
+    setIsLoading(true);
+    try {
+      const profileRes = await ApiClient.getRiderProfile();
+      if (profileRes.data) {
+        setProfile(profileRes.data);
+        setIsOnline(profileRes.data.status !== 'offline');
+
+        if (profileRes.data.activeOrder) {
+          const orderRes = await ApiClient.getOrderDetails(profileRes.data.activeOrder);
+          if (orderRes.data) setActiveOrder(orderRes.data);
+        }
+      }
+
+      const ordersRes = await ApiClient.getNearbyOrders();
+      if (ordersRes.data) setNearbyOrders(ordersRes.data);
+
+      const earningsRes = await ApiClient.getRiderEarnings();
+      if (earningsRes.data) {
+        setEarningsHistory(earningsRes.data.history || []);
+        // Update local profile state with latest earnings
+        setProfile((prev: any) => prev ? { ...prev, totalEarnings: earningsRes.data.totalEarnings } : prev);
+      }
+    } catch (error) {
+      console.error('Error fetching rider data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Track location when online
+  useEffect(() => {
+    if (isOnline && navigator.geolocation) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setCurrentLocation({ lat: latitude, lng: longitude });
+
+          // Update backend
+          ApiClient.updateRiderLocation(latitude, longitude);
+
+          // Emit via socket if there's an active order
+          if (activeOrder && socketRef.current) {
+            socketRef.current.emit('update-location', {
+              orderId: activeOrder._id,
+              riderId: user?.id,
+              latitude,
+              longitude
+            });
+          }
+        },
+        (err) => console.error('Geolocation error:', err),
+        { enableHighAccuracy: true }
+      );
+    } else {
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    }
+
+    return () => {
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
+    };
+  }, [isOnline, activeOrder, user]);
+
+  const handleToggleOnline = async (checked: boolean) => {
+    try {
+      const status = checked ? 'available' : 'offline';
+      const res = await ApiClient.updateRiderStatus(status as any);
+      if (!res.error) {
+        setIsOnline(checked);
+        toast.success(checked ? "You're now online!" : "You're now offline.");
+      }
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleAcceptOrder = async (orderId: string) => {
+    try {
+      const res = await ApiClient.acceptRiderOrder(orderId);
+      if (!res.error) {
+        toast.success("Order accepted!");
+        fetchRiderData();
+        router.push('/rider/map');
+      } else {
+        toast.error(res.error);
+      }
+    } catch (error) {
+      toast.error("Failed to accept order");
+    }
+  };
+
+  const handlePickup = async () => {
+    if (!activeOrder) return;
+    try {
+      const res = await ApiClient.pickupOrder(activeOrder._id);
+      if (!res.error) {
+        toast.success("Order picked up!");
+        fetchRiderData();
+      }
+    } catch (error) {
+      toast.error("Pickup failed");
+    }
+  };
+
+  const handleDeliver = async () => {
+    if (!activeOrder) return;
+    try {
+      const res = await ApiClient.deliverOrder(activeOrder._id);
+      if (!res.error) {
+        toast.success("Delivery completed!");
+        fetchRiderData();
+        setActiveOrder(null);
+        router.push('/rider/home');
+      }
+    } catch (error) {
+      toast.error("Delivery completion failed");
+    }
+  };
+
+  const handleRegister = async (data: { vehicleType: string; vehicleNumber: string }) => {
+    setIsRegistering(true);
+    try {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const res = await ApiClient.registerRider({
+          ...data,
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude
+        });
+
+        if (!res.error) {
+          toast.success("Welcome aboard!");
+          window.location.reload();
+        } else {
+          toast.error(res.error);
+        }
+      });
+    } catch (error) {
+      toast.error("Registration failed");
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  return (
+    <RiderContext.Provider value={{
+      profile, nearbyOrders, activeOrder, isLoading, isOnline,
+      currentLocation, earningsHistory, isRegistering,
+      handleToggleOnline, handleAcceptOrder, handlePickup, handleDeliver,
+      handleRegister, fetchRiderData
+    }}>
+      {children}
+    </RiderContext.Provider>
+  );
+};
+
+export const useRider = () => {
+  const context = useContext(RiderContext);
+  if (context === undefined) {
+    throw new Error('useRider must be used within a RiderProvider');
+  }
+  return context;
+};

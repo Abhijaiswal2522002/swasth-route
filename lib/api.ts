@@ -653,7 +653,7 @@ export class ApiClient {
 
   // Rider endpoints
   static async registerRider(data: { vehicleType: string; vehicleNumber: string; latitude: number; longitude: number }) {
-    return this.request('/rider/register', {
+    return this.request('/rider/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -661,6 +661,13 @@ export class ApiClient {
 
   static async getRiderProfile() {
     return this.request<any>('/rider/profile');
+  }
+
+  static async updateRiderProfile(data: { vehicleType?: string; vehicleNumber?: string; name?: string; phone?: string }) {
+    return this.request('/rider/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   static async updateRiderStatus(status: 'offline' | 'available' | 'busy') {
@@ -671,36 +678,48 @@ export class ApiClient {
   }
 
   static async updateRiderLocation(latitude: number, longitude: number) {
-    return this.request('/rider/location', {
-      method: 'PUT',
+    return this.request('/rider/location/update', {
+      method: 'POST',
       body: JSON.stringify({ latitude, longitude }),
     });
   }
 
   static async getNearbyOrders() {
-    return this.request<any[]>('/rider/nearby-orders');
+    return this.request<any[]>('/rider/orders/available');
   }
 
   static async acceptRiderOrder(orderId: string) {
     return this.request(`/rider/orders/${orderId}/accept`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify({}),
     });
   }
 
   static async pickupOrder(orderId: string) {
     return this.request(`/rider/orders/${orderId}/pickup`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify({}),
     });
   }
 
   static async deliverOrder(orderId: string) {
     return this.request(`/rider/orders/${orderId}/deliver`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify({}),
     });
   }
+
+  static async getRiderEarnings() {
+    return this.request<any>('/rider/earnings');
+  }
+
+  static async smartAssignRider(data: { latitude: number; longitude: number; maxDistance?: number }) {
+    return this.request('/rider/orders/smart-assign', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
 }
 
 export default ApiClient;

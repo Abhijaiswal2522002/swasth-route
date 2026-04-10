@@ -5,7 +5,12 @@ const EarningSchema = new mongoose.Schema(
     pharmacyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Pharmacy',
-      required: true,
+      required: false,
+    },
+    riderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Rider',
+      required: false,
     },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
