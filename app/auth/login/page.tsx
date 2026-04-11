@@ -176,16 +176,20 @@ function LoginContent() {
   );
 }
 
+import GuestRoute from '@/components/auth/GuestRoute';
+
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
-        <div className="p-8 flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </Card>
-    }>
-      <LoginContent />
-    </Suspense>
+    <GuestRoute>
+      <Suspense fallback={
+        <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
+          <div className="p-8 flex items-center justify-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </Card>
+      }>
+        <LoginContent />
+      </Suspense>
+    </GuestRoute>
   );
 }

@@ -5,7 +5,7 @@ export interface AuthUser {
   phone: string;
   name: string;
   email?: string;
-  role: 'user' | 'pharmacy' | 'admin';
+  role: 'user' | 'pharmacy' | 'admin' | 'rider';
 }
 
 export class AuthManager {

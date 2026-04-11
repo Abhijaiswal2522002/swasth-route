@@ -7,7 +7,7 @@ import { RefreshCw } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: ('user' | 'pharmacy' | 'admin')[];
+  allowedRoles?: ('user' | 'pharmacy' | 'admin' | 'rider')[];
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {

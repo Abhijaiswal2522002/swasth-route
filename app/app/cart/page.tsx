@@ -104,9 +104,11 @@ export default function CartPage() {
                   <span className="font-black text-3xl text-primary">₹{cartTotal}</span>
                 </div>
                 
-                <Button className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
-                  Proceed to Checkout
-                </Button>
+                <Link href="/app/checkout" className="w-full">
+                  <Button className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
+                    Proceed to Checkout
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
