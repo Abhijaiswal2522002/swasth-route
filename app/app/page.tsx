@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
@@ -10,19 +10,19 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, MapPin, AlertCircle, Clock,
   ChevronRight, FileText, HeadphonesIcon,
-  RefreshCw, Store, Truck, LogOut, Navigation
+  RefreshCw, Store, Truck, LogOut, Navigation, Users
 } from 'lucide-react';
 import ApiClient from '@/lib/api';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
-import { reverseGeocode, getCurrentLocation } from '@/lib/locationUtils';
+import { reverseGeocode, getCurrentLocation, forwardGeocode, type GeocodedResult } from '@/lib/locationUtils';
 import MapBox from '@/components/MapBox';
 
 export default function AppHomeDashboard() {
@@ -38,6 +38,13 @@ export default function AppHomeDashboard() {
   const [isLocating, setIsLocating] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
 
+  // "Order for someone else" state
+  const [addressQuery, setAddressQuery] = useState('');
+  const [addressResults, setAddressResults] = useState<GeocodedResult[]>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [orderForOther, setOrderForOther] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     fetchData();
   }, [user]);
@@ -50,7 +57,7 @@ export default function AppHomeDashboard() {
       if (profileRes.data) {
         const profileData = profileRes.data as any;
         setProfile(profileData);
-        
+
         // Set initial selected location from default address
         const defAddr = profileData.addresses?.find((a: any) => a.isDefault) || profileData.addresses?.[0];
         if (defAddr) {
@@ -132,6 +139,45 @@ export default function AppHomeDashboard() {
     }
   };
 
+  // Debounced address search for "Order for someone else"
+  const handleAddressSearch = useCallback((query: string) => {
+    setAddressQuery(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (query.trim().length < 3) {
+      setAddressResults([]);
+      return;
+    }
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingAddress(true);
+      try {
+        const results = await forwardGeocode(query.trim());
+        setAddressResults(results);
+      } catch (e) {
+        console.error('Address search error:', e);
+      } finally {
+        setIsSearchingAddress(false);
+      }
+    }, 400);
+  }, []);
+
+  const handleSelectSearchedAddress = (result: GeocodedResult) => {
+    const newLocation = {
+      label: 'For Someone Else',
+      street: result.displayName,
+      city: result.address.city,
+      state: result.address.state,
+      pincode: result.address.pincode,
+      latitude: result.lat,
+      longitude: result.lng
+    };
+    setSelectedLocation(newLocation);
+    fetchNearbyPharmacies(result.lat, result.lng);
+    setAddressQuery('');
+    setAddressResults([]);
+    setOrderForOther(false);
+    setIsLocationModalOpen(false);
+  };
+
   const currentAddress = selectedLocation || profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
     label: 'Home',
     street: 'Select a location to see nearby pharmacies'
@@ -180,7 +226,7 @@ export default function AppHomeDashboard() {
           </div>
 
           {/* Location Bar */}
-          <div 
+          <div
             onClick={() => setIsLocationModalOpen(true)}
             className="flex items-center w-max max-w-full gap-2 text-sm md:text-base font-medium bg-black/15 px-4 py-2 border border-white/10 rounded-full backdrop-blur-md cursor-pointer hover:bg-black/25 transition-colors"
           >
@@ -305,21 +351,21 @@ export default function AppHomeDashboard() {
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {nearbyPharmacies.length > 0 ? nearbyPharmacies.map((pharm, i) => (
-                <Link 
-                  key={i} 
+                <Link
+                  key={i}
                   href={`/app/medicines?pharmacy=${pharm._id || pharm.id}`}
                   className="bg-gray-50 border border-gray-100 rounded-2xl p-5 cursor-pointer hover:border-primary/40 hover:shadow-xl hover:bg-white transition-all group relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Store className="w-12 h-12" />
                   </div>
-                  
+
                   <div className="p-3 bg-white w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-sm border border-gray-100 group-hover:border-primary/20">
                     <Store className="w-8 h-8 text-primary" />
                   </div>
-                  
+
                   <h4 className="font-extrabold text-sm md:text-base text-gray-900 truncate mb-1" title={pharm.name}>{pharm.name}</h4>
-                  
+
                   <div className="flex flex-col gap-2 mt-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -329,7 +375,7 @@ export default function AppHomeDashboard() {
                         <Badge className="bg-primary/10 text-primary text-[8px] h-4 font-black uppercase tracking-widest border-none px-1.5">Nearby</Badge>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-2 mt-1">
                       <div className={`w-2 h-2 rounded-full ${pharm.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`}></div>
                       <span className={`text-[10px] font-bold uppercase tracking-widest ${pharm.status === 'active' ? 'text-green-600' : 'text-red-500'}`}>
@@ -340,15 +386,16 @@ export default function AppHomeDashboard() {
 
                   <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
                     <span className="text-[10px] font-bold text-primary flex items-center gap-1 uppercase tracking-widest">Details <ChevronRight className="w-3 h-3" /></span>
-                    <a 
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${pharm.location?.coordinates?.[1]},${pharm.location?.coordinates?.[0]}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${pharm.location?.coordinates?.[1]},${pharm.location?.coordinates?.[0]}`, '_blank');
+                      }}
                       className="p-1.5 bg-gray-100 rounded-lg text-gray-400 hover:text-primary hover:bg-primary/5 transition-all"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <Navigation className="w-3.5 h-3.5" />
-                    </a>
+                    </button>
                   </div>
                 </Link>
               )) : (
@@ -378,7 +425,7 @@ export default function AppHomeDashboard() {
                         {order.items?.map((it: any) => it.medicineName).join(', ')}
                       </h4>
                       <p className="text-xs font-medium text-gray-500 mt-1">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • 
+                        {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} •
                         <span className="text-gray-900 font-bold ml-1">₹{order.total}</span>
                       </p>
                     </div>
@@ -415,7 +462,7 @@ export default function AppHomeDashboard() {
 
           <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto scrollbar-hide">
             {/* CURRENT LOCATION BUTTON */}
-            <Button 
+            <Button
               onClick={handleUseCurrentLocation}
               disabled={isLocating}
               className="w-full h-14 rounded-2xl bg-primary/10 text-primary hover:bg-primary/20 border-none font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 transition-all"
@@ -424,23 +471,81 @@ export default function AppHomeDashboard() {
               {isLocating ? 'Detecting Location...' : 'Use My Current Location'}
             </Button>
 
+            {/* ORDER FOR SOMEONE ELSE */}
+            <div className="space-y-3">
+              <button
+                onClick={() => setOrderForOther(!orderForOther)}
+                className={`w-full h-14 rounded-2xl border-2 border-dashed font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-3 transition-all ${orderForOther
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-primary/30 hover:text-primary'
+                  }`}
+              >
+                <Users className="w-4 h-4" />
+                Order for Someone Else
+              </button>
+
+              {orderForOther && (
+                <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <Input
+                      placeholder="Type an address, area, or landmark..."
+                      value={addressQuery}
+                      onChange={(e) => handleAddressSearch(e.target.value)}
+                      className="pl-11 pr-4 h-12 rounded-xl bg-white border-gray-200 focus-visible:ring-primary text-sm"
+                      autoFocus
+                    />
+                    {isSearchingAddress && (
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                        <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Search Results */}
+                  {addressResults.length > 0 && (
+                    <div className="bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden max-h-[200px] overflow-y-auto">
+                      {addressResults.map((result, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleSelectSearchedAddress(result)}
+                          className="w-full text-left px-4 py-3 hover:bg-primary/5 transition-colors flex items-start gap-3 border-b border-gray-50 last:border-b-0"
+                        >
+                          <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{result.displayName.split(',')[0]}</p>
+                            <p className="text-xs text-gray-500 truncate mt-0.5">{result.displayName}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {addressQuery.length >= 3 && !isSearchingAddress && addressResults.length === 0 && (
+                    <p className="text-xs text-gray-400 text-center py-2">No results found. Try a different address.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* SAVED ADDRESSES */}
             {profile?.addresses && profile.addresses.length > 0 && (
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Saved Addresses</p>
                 {profile.addresses.map((addr: any, i: number) => (
-                  <div 
+                  <div
                     key={i}
                     onClick={() => {
                       setSelectedLocation(addr);
                       fetchNearbyPharmacies(addr.latitude, addr.longitude);
                       setIsLocationModalOpen(false);
                     }}
-                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-4 ${
-                      selectedLocation?._id === addr._id 
-                        ? 'border-primary bg-primary/5' 
+                    className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-4 ${selectedLocation?._id === addr._id
+                        ? 'border-primary bg-primary/5'
                         : 'border-gray-50 bg-white hover:border-primary/20'
-                    }`}
+                      }`}
                   >
                     <div className={`p-2 rounded-lg ${selectedLocation?._id === addr._id ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
                       <Store className="w-4 h-4" />
@@ -458,7 +563,7 @@ export default function AppHomeDashboard() {
             <div className="space-y-3">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Or Pick Manually on Map</p>
               <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm h-[200px]">
-                <MapBox 
+                <MapBox
                   isPicker={true}
                   center={{
                     lat: selectedLocation?.latitude || 19.0760,
@@ -478,19 +583,19 @@ export default function AppHomeDashboard() {
           </div>
 
           <DialogFooter className="p-6 bg-gray-50/50 flex flex-row gap-3 sm:justify-between border-t border-gray-100">
-             <Button 
-               variant="ghost" 
-               className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900"
-               onClick={() => setIsLocationModalOpen(false)}
-             >
-               Close
-             </Button>
-             <Button 
-               className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
-               onClick={() => setIsLocationModalOpen(false)}
-             >
-               Confirm Location
-             </Button>
+            <Button
+              variant="ghost"
+              className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900"
+              onClick={() => setIsLocationModalOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              className="flex-1 h-12 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+              onClick={() => setIsLocationModalOpen(false)}
+            >
+              Confirm Location
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

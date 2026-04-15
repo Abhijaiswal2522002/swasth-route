@@ -97,3 +97,50 @@ export function getCurrentLocation(): Promise<LatLng> {
     );
   });
 }
+
+export interface GeocodedResult {
+  lat: number;
+  lng: number;
+  address: AddressComponents;
+  displayName: string;
+}
+
+/**
+ * Forward geocodes an address string into coordinates using Geoapify API.
+ * Returns an array of possible results for the user to pick from.
+ */
+export async function forwardGeocode(query: string): Promise<GeocodedResult[]> {
+  try {
+    const token = process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY;
+    if (!token) {
+      console.warn('Geoapify token missing');
+      return [];
+    }
+
+    const response = await fetch(
+      `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(query)}&filter=countrycode:in&limit=5&apiKey=${token}`
+    );
+    const data = await response.json();
+
+    if (data.features && data.features.length > 0) {
+      return data.features.map((feature: any) => {
+        const props = feature.properties;
+        return {
+          lat: props.lat,
+          lng: props.lon,
+          address: {
+            street: props.street || props.formatted?.split(',')[0] || '',
+            city: props.city || props.municipality || '',
+            state: props.state || '',
+            pincode: props.postcode || '',
+            fullAddress: props.formatted || '',
+          },
+          displayName: props.formatted || query,
+        };
+      });
+    }
+  } catch (error) {
+    console.error('Error forward geocoding with Geoapify:', error);
+  }
+  return [];
+}
