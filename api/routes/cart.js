@@ -4,12 +4,13 @@ import Cart from '../models/Cart.js';
 
 const router = express.Router();
 
-// Get the user's cart
+// Get the user's cart for a specific city and pincode
 router.get('/', verifyToken, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ userId: req.user.id });
+    const { city = 'default', pincode = 'default' } = req.query;
+    let cart = await Cart.findOne({ userId: req.user.id, city, pincode });
     if (!cart) {
-      cart = new Cart({ userId: req.user.id, items: [] });
+      cart = new Cart({ userId: req.user.id, items: [], city, pincode });
       await cart.save();
     }
     res.json(cart);
@@ -21,11 +22,11 @@ router.get('/', verifyToken, async (req, res) => {
 // Add logic: Add an item or increment quantity
 router.post('/add', verifyToken, async (req, res) => {
   try {
-    const { medicineId, pharmacyId, medicineName, price } = req.body;
+    const { medicineId, pharmacyId, medicineName, price, city = 'default', pincode = 'default' } = req.body;
     
-    let cart = await Cart.findOne({ userId: req.user.id });
+    let cart = await Cart.findOne({ userId: req.user.id, city, pincode });
     if (!cart) {
-      cart = new Cart({ userId: req.user.id, items: [] });
+      cart = new Cart({ userId: req.user.id, items: [], city, pincode });
     }
 
     // Check if item already exists
@@ -58,9 +59,9 @@ router.post('/add', verifyToken, async (req, res) => {
 // Update item quantity
 router.put('/update', verifyToken, async (req, res) => {
   try {
-    const { medicineId, pharmacyId, quantity } = req.body;
+    const { medicineId, pharmacyId, quantity, city = 'default', pincode = 'default' } = req.body;
 
-    let cart = await Cart.findOne({ userId: req.user.id });
+    let cart = await Cart.findOne({ userId: req.user.id, city, pincode });
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
 
     const itemIndex = cart.items.findIndex(
@@ -87,8 +88,9 @@ router.put('/update', verifyToken, async (req, res) => {
 router.delete('/item/:medicineId/:pharmacyId', verifyToken, async (req, res) => {
   try {
     const { medicineId, pharmacyId } = req.params;
+    const { city = 'default', pincode = 'default' } = req.query;
     
-    let cart = await Cart.findOne({ userId: req.user.id });
+    let cart = await Cart.findOne({ userId: req.user.id, city, pincode });
     if (!cart) return res.status(404).json({ error: 'Cart not found' });
 
     cart.items = cart.items.filter(
@@ -105,7 +107,8 @@ router.delete('/item/:medicineId/:pharmacyId', verifyToken, async (req, res) => 
 // Clear cart
 router.delete('/clear', verifyToken, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ userId: req.user.id });
+    const { city = 'default', pincode = 'default' } = req.query;
+    let cart = await Cart.findOne({ userId: req.user.id, city, pincode });
     if (cart) {
       cart.items = [];
       await cart.save();

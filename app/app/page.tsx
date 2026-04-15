@@ -24,9 +24,11 @@ import {
 } from "@/components/ui/dialog";
 import { reverseGeocode, getCurrentLocation, forwardGeocode, type GeocodedResult } from '@/lib/locationUtils';
 import MapBox from '@/components/MapBox';
+import { useLocation } from '@/lib/context/LocationContext';
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
+  const { selectedLocation, setSelectedLocation, isLoading: isLocationLoading } = useLocation();
   const [profile, setProfile] = useState<any>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
@@ -36,7 +38,6 @@ export default function AppHomeDashboard() {
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<any>(null);
 
   // "Order for someone else" state
   const [addressQuery, setAddressQuery] = useState('');
@@ -58,14 +59,19 @@ export default function AppHomeDashboard() {
         const profileData = profileRes.data as any;
         setProfile(profileData);
 
-        // Set initial selected location from default address
-        const defAddr = profileData.addresses?.find((a: any) => a.isDefault) || profileData.addresses?.[0];
-        if (defAddr) {
-          setSelectedLocation(defAddr);
-          fetchNearbyPharmacies(defAddr.latitude, defAddr.longitude);
+        // If no location in context yet, set initial selected location from default address
+        if (!selectedLocation) {
+          const defAddr = profileData.addresses?.find((a: any) => a.isDefault) || profileData.addresses?.[0];
+          if (defAddr) {
+            setSelectedLocation(defAddr);
+            fetchNearbyPharmacies(defAddr.latitude, defAddr.longitude);
+          } else {
+            // Default to Mumbai if no address
+            fetchNearbyPharmacies(19.0760, 72.8777);
+          }
         } else {
-          // Default to Mumbai if no address
-          fetchNearbyPharmacies(19.0760, 72.8777);
+          // Use context location
+          fetchNearbyPharmacies(selectedLocation.latitude, selectedLocation.longitude);
         }
       }
 

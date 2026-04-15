@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import ApiClient from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation } from './LocationContext';
 
 interface CartItem {
   medicineId: string;
@@ -28,27 +29,33 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { selectedLocation } = useLocation();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch cart on load if user is logged in
+  // Fetch cart on load or when user/location changes
   useEffect(() => {
     if (user && user.role === 'user') {
       fetchCart();
     } else {
       setCartItems([]);
     }
-  }, [user]);
+  }, [user, selectedLocation?.city, selectedLocation?.pincode]);
 
   const fetchCart = async () => {
     setIsLoading(true);
     try {
-      const res = await ApiClient.getCart();
+      const city = selectedLocation?.city || 'default';
+      const pincode = selectedLocation?.pincode || 'default';
+      const res = await ApiClient.getCart(city, pincode);
       if (res.data && res.data.items) {
         setCartItems(res.data.items);
+      } else {
+        setCartItems([]);
       }
     } catch (error) {
       console.error('Failed to fetch cart', error);
+      setCartItems([]);
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +68,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const existingItemIndex = cartItems.findIndex(
         i => i.medicineId === item.medicineId && i.pharmacyId === item.pharmacyId
       );
-      
+
       let newItems = [...cartItems];
       if (existingItemIndex > -1) {
         newItems[existingItemIndex].quantity += 1;
@@ -71,7 +78,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCartItems(newItems);
 
       // Backend sync
-      await ApiClient.addToCart(item.medicineId, item.pharmacyId, item.medicineName, item.price);
+      const city = selectedLocation?.city || 'default';
+      const pincode = selectedLocation?.pincode || 'default';
+      await ApiClient.addToCart(item.medicineId, item.pharmacyId, item.medicineName, item.price, city, pincode);
       // Re-fetch to ensure perfect sync (optional, can just rely on optimistic)
       fetchCart();
     } catch (error) {
@@ -95,7 +104,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCartItems(newItems);
       }
 
-      await ApiClient.updateCartQuantity(medicineId, pharmacyId, quantity);
+      const city = selectedLocation?.city || 'default';
+      const pincode = selectedLocation?.pincode || 'default';
+      await ApiClient.updateCartQuantity(medicineId, pharmacyId, quantity, city, pincode);
     } catch (error) {
       console.error('Failed to update quantity', error);
       fetchCart();
@@ -106,7 +117,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     try {
       setCartItems(prev => prev.filter(i => !(i.medicineId === medicineId && i.pharmacyId === pharmacyId)));
-      await ApiClient.removeFromCart(medicineId, pharmacyId);
+      const city = selectedLocation?.city || 'default';
+      const pincode = selectedLocation?.pincode || 'default';
+      await ApiClient.removeFromCart(medicineId, pharmacyId, city, pincode);
     } catch (error) {
       console.error('Failed to remove from cart', error);
       fetchCart();
@@ -117,7 +130,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     try {
       setCartItems([]);
-      await ApiClient.clearCart();
+      const city = selectedLocation?.city || 'default';
+      const pincode = selectedLocation?.pincode || 'default';
+      await ApiClient.clearCart(city, pincode);
     } catch (error) {
       console.error('Failed to clear cart', error);
       fetchCart();
@@ -128,16 +143,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartTotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
   return (
-    <CartContext.Provider 
-      value={{ 
-        cartItems, 
-        cartCount, 
-        cartTotal, 
-        isLoading, 
-        addToCart, 
-        updateQuantity, 
-        removeFromCart, 
-        clearCart 
+    <CartContext.Provider
+      value={{
+        cartItems,
+        cartCount,
+        cartTotal,
+        isLoading,
+        addToCart,
+        updateQuantity,
+        removeFromCart,
+        clearCart
       }}
     >
       {children}

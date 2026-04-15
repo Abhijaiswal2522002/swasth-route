@@ -33,11 +33,13 @@ import {
 } from "@/components/ui/dialog";
 import MapBox from '@/components/MapBox';
 import { reverseGeocode } from '@/lib/locationUtils';
+import { useLocation } from '@/lib/context/LocationContext';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { cartItems, cartTotal, clearCart, isLoading: cartLoading } = useCart();
+  const { selectedLocation } = useLocation();
 
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [isManualAddress, setIsManualAddress] = useState(false);
@@ -63,11 +65,33 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.addresses && user.addresses.length > 0) {
+    if (selectedLocation) {
+      // Check if the global selected location matches any of the user's saved addresses
+      const savedAddr = user?.addresses?.find((a: any) => 
+        a.latitude === selectedLocation.latitude && a.longitude === selectedLocation.longitude
+      );
+
+      if (savedAddr) {
+        setSelectedAddressId(savedAddr._id);
+        setIsManualAddress(false);
+      } else {
+        // It's a custom or searched location from the dashboard
+        setManualAddress({
+          label: selectedLocation.label || 'Selected Location',
+          street: selectedLocation.street || '',
+          city: selectedLocation.city || '',
+          state: selectedLocation.state || '',
+          pincode: selectedLocation.pincode || '',
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude
+        });
+        setIsManualAddress(true);
+      }
+    } else if (user?.addresses && user.addresses.length > 0) {
       const defaultAddr = user.addresses.find((a: any) => a.isDefault) || user.addresses[0];
       setSelectedAddressId(defaultAddr._id);
     }
-  }, [user]);
+  }, [user, selectedLocation]);
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) return;

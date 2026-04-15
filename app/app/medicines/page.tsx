@@ -8,6 +8,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
 import { useCart } from '@/lib/context/CartContext';
+import { useLocation } from '@/lib/context/LocationContext';
 
 function MedicinesContent() {
   const { user, loading: authLoading } = useAuth();
@@ -16,6 +17,7 @@ function MedicinesContent() {
   const pharmacyId = searchParams.get('pharmacy');
   const initialQuery = searchParams.get('query') || '';
   const { addToCart } = useCart();
+  const { selectedLocation } = useLocation();
 
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [pharmacies, setPharmacies] = useState<any[]>([]);
@@ -53,9 +55,9 @@ function MedicinesContent() {
               setAllMedicines(meds);
             }
           } else {
-            // Get user location or default to Mumbai
-            const lat = user.addresses?.[0]?.latitude || 19.0760;
-            const lon = user.addresses?.[0]?.longitude || 72.8777;
+            // Use global selected location, or user's default, or Mumbai
+            const lat = selectedLocation?.latitude || user.addresses?.[0]?.latitude || 19.0760;
+            const lon = selectedLocation?.longitude || user.addresses?.[0]?.longitude || 72.8777;
 
             const res = await ApiClient.getNearbyPharmacies(lat, lon, 10000); // 10km range
             if (res.data) {
@@ -87,7 +89,7 @@ function MedicinesContent() {
       };
       fetchData();
     }
-  }, [user, authLoading, router, pharmacyId]);
+  }, [user, authLoading, router, pharmacyId, selectedLocation]);
 
   const filteredMedicines = allMedicines.filter((medicine) =>
     medicine.medicineName?.toLowerCase().includes(searchTerm.toLowerCase())

@@ -31,11 +31,21 @@ const CartSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true, // One active cart per user
+    },
+    city: {
+      type: String,
+      default: 'default',
+    },
+    pincode: {
+      type: String,
+      default: 'default',
     },
     items: [CartItemSchema],
   },
   { timestamps: true }
 );
+
+// One active cart per user per location area
+CartSchema.index({ userId: 1, city: 1, pincode: 1 }, { unique: true });
 
 export default mongoose.model('Cart', CartSchema);

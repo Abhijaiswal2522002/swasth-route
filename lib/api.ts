@@ -365,32 +365,41 @@ export class ApiClient {
   }
 
   // Cart endpoints
-  static async getCart() {
-    return this.request<any>('/cart');
+  static async getCart(city?: string, pincode?: string) {
+    const params = new URLSearchParams();
+    if (city) params.append('city', city);
+    if (pincode) params.append('pincode', pincode);
+    return this.request<any>(`/cart?${params.toString()}`);
   }
 
-  static async addToCart(medicineId: string, pharmacyId: string, medicineName: string, price: number) {
+  static async addToCart(medicineId: string, pharmacyId: string, medicineName: string, price: number, city?: string, pincode?: string) {
     return this.request('/cart/add', {
       method: 'POST',
-      body: JSON.stringify({ medicineId, pharmacyId, medicineName, price }),
+      body: JSON.stringify({ medicineId, pharmacyId, medicineName, price, city, pincode }),
     });
   }
 
-  static async updateCartQuantity(medicineId: string, pharmacyId: string, quantity: number) {
+  static async updateCartQuantity(medicineId: string, pharmacyId: string, quantity: number, city?: string, pincode?: string) {
     return this.request('/cart/update', {
       method: 'PUT',
-      body: JSON.stringify({ medicineId, pharmacyId, quantity }),
+      body: JSON.stringify({ medicineId, pharmacyId, quantity, city, pincode }),
     });
   }
 
-  static async removeFromCart(medicineId: string, pharmacyId: string) {
-    return this.request(`/cart/item/${medicineId}/${pharmacyId}`, {
+  static async removeFromCart(medicineId: string, pharmacyId: string, city?: string, pincode?: string) {
+    const params = new URLSearchParams();
+    if (city) params.append('city', city);
+    if (pincode) params.append('pincode', pincode);
+    return this.request(`/cart/item/${medicineId}/${pharmacyId}?${params.toString()}`, {
       method: 'DELETE',
     });
   }
 
-  static async clearCart() {
-    return this.request('/cart/clear', {
+  static async clearCart(city?: string, pincode?: string) {
+    const params = new URLSearchParams();
+    if (city) params.append('city', city);
+    if (pincode) params.append('pincode', pincode);
+    return this.request(`/cart/clear?${params.toString()}`, {
       method: 'DELETE',
     });
   }
