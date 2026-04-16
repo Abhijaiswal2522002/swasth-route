@@ -20,7 +20,13 @@ import {
   AlertCircle, 
   Loader2,
   Navigation,
-  Plus
+  Plus,
+  Info,
+  Clock,
+  CloudRain,
+  Zap,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -63,6 +69,18 @@ export default function CheckoutPage() {
   const [isLocating, setIsLocating] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+
+  // Dynamic Pricing State
+  const [feesBreakdown, setFeesBreakdown] = useState<{
+    totalDeliveryFee: number;
+    details: Record<string, any>;
+    isLoading: boolean;
+  }>({
+    totalDeliveryFee: 0,
+    details: {},
+    isLoading: false
+  });
 
   useEffect(() => {
     if (selectedLocation) {
@@ -92,6 +110,48 @@ export default function CheckoutPage() {
       setSelectedAddressId(defaultAddr._id);
     }
   }, [user, selectedLocation]);
+
+  // Update Fees Effect
+  useEffect(() => {
+    const fetchFees = async () => {
+      if (cartItems.length === 0) return;
+      
+      let deliveryAddress;
+      if (isManualAddress) {
+        if (!manualAddress.latitude || !manualAddress.longitude) return;
+        deliveryAddress = manualAddress;
+      } else {
+        deliveryAddress = user?.addresses?.find((a: any) => a._id === selectedAddressId);
+        if (!deliveryAddress) return;
+      }
+
+      setFeesBreakdown(prev => ({ ...prev, isLoading: true }));
+      try {
+        const pharmacyIds = Array.from(new Set(cartItems.map(item => item.pharmacyId)));
+        let totalFee = 0;
+        const details: Record<string, any> = {};
+
+        for (const pId of pharmacyIds) {
+          const { data, error } = await ApiClient.previewFees(pId, deliveryAddress, false); // isEmergency can be added as a switch
+          if (data) {
+            totalFee += data.deliveryFee;
+            details[pId] = data;
+          }
+        }
+
+        setFeesBreakdown({
+          totalDeliveryFee: totalFee,
+          details,
+          isLoading: false
+        });
+      } catch (err) {
+        console.error('Error fetching fees:', err);
+        setFeesBreakdown(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    fetchFees();
+  }, [cartItems, selectedAddressId, isManualAddress, manualAddress.latitude, manualAddress.longitude, user]);
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) return;
@@ -407,15 +467,83 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="font-bold text-gray-900">₹{cartTotal}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Delivery Fee</span>
-                  <span className="font-bold text-green-600">Free</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center group cursor-pointer" onClick={() => setShowBreakdown(!showBreakdown)}>
+                    <div className="flex items-center gap-1.5">
+                      <span>Delivery Fee</span>
+                      <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-primary transition-colors" />
+                    </div>
+                    {feesBreakdown.isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-gray-900">
+                          {feesBreakdown.totalDeliveryFee > 0 ? `₹${feesBreakdown.totalDeliveryFee}` : 'Calculating...'}
+                        </span>
+                        {showBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pricing Breakdown Detail */}
+                  {showBreakdown && !feesBreakdown.isLoading && feesBreakdown.totalDeliveryFee > 0 && (
+                    <div className="bg-gray-50 rounded-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                      {Object.entries(feesBreakdown.details).map(([pId, detail]: [string, any]) => {
+                        const pharmacyName = cartItems.find(i => i.pharmacyId === pId)?.pharmacyName || 'Pharmacy';
+                        return (
+                          <div key={pId} className="space-y-2 last:border-0 border-b border-gray-100 pb-2 last:pb-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">{pharmacyName}</p>
+                            
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                              <div className="flex justify-between">
+                                <span>Base Fee</span>
+                                <span className="font-medium text-gray-700">₹{detail.baseFee}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Distance ({detail.distanceKm} km)</span>
+                                <span className="font-medium text-gray-700">₹{detail.distanceCharge + detail.fuelCharge}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Platform Fee</span>
+                                <span className="font-medium text-gray-700">₹{detail.platformFee}</span>
+                              </div>
+
+                              {detail.surgeMultiplier > 1 && (
+                                <div className="col-span-2 mt-1 pt-1 border-t border-dashed border-gray-200">
+                                  <p className="font-bold text-amber-600 flex items-center gap-1 mb-1">
+                                    <Zap className="w-3 h-3" /> Surge Applied ({detail.surgeMultiplier}x)
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {detail.surgeFactors.isPeakHour && (
+                                      <span className="flex items-center gap-1 bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                        <Clock className="w-2.5 h-2.5" /> PEAK HOURS
+                                      </span>
+                                    )}
+                                    {detail.surgeFactors.isWeatherSurge && (
+                                      <span className="flex items-center gap-1 bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                        <CloudRain className="w-2.5 h-2.5" /> {detail.surgeFactors.weatherCondition.toUpperCase()}
+                                      </span>
+                                    )}
+                                    {detail.surgeFactors.isEmergency && (
+                                      <span className="flex items-center gap-1 bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                        <AlertCircle className="w-2.5 h-2.5" /> EMERGENCY
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
               
               <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center">
                 <span className="font-extrabold text-gray-900 text-lg">Total</span>
-                <span className="font-black text-3xl text-primary">₹{cartTotal}</span>
+                <span className="font-black text-3xl text-primary">₹{cartTotal + feesBreakdown.totalDeliveryFee}</span>
               </div>
 
               {error && (
@@ -437,7 +565,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <>
-                    Place Order ₹{cartTotal}
+                    Place Order ₹{cartTotal + feesBreakdown.totalDeliveryFee}
                   </>
                 )}
               </Button>

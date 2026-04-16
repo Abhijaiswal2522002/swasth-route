@@ -64,6 +64,23 @@ const OrderSchema = new mongoose.Schema(
     },
     estimatedDeliveryTime: Number, // in minutes
     actualDeliveryTime: Date,
+    deliveryDistance: Number, // in km
+    riderPayout: Number, // amount rider earns for this delivery
+    pricingBreakdown: {
+      baseFee: Number,
+      distanceCharge: Number,
+      fuelCharge: Number,
+      surgeMultiplier: Number,
+      surgeFactors: {
+        isEmergency: Boolean,
+        isPeakHour: Boolean,
+        isWeatherSurge: Boolean,
+        weatherCondition: String,
+        isDemandSurge: Boolean,
+        demandAdder: Number,
+      },
+      platformFee: Number,
+    },
     cancellationReason: String,
     notes: String,
     rating: {

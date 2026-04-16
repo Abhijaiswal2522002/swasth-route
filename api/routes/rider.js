@@ -7,6 +7,7 @@ import User from '../models/User.js';
 import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
 import { sendEmailVerification } from '../utils/email.js';
+import { recordOrderEarnings } from '../services/earningService.js';
 
 const router = express.Router();
 
@@ -294,21 +295,12 @@ router.post('/orders/:id/deliver', verifyRider, async (req, res) => {
     await order.save();
 
     const rider = await Rider.findOne({ userId: req.rider.id });
-    const deliveryFee = order.deliveryFee || 50;
-
-    // Create Earning record
-    const earning = new Earning({
-      riderId: rider._id,
-      orderId: order._id,
-      amount: deliveryFee,
-      type: 'order',
-      description: `Delivery fee for order ${order.orderId}`
-    });
-    await earning.save();
+    
+    // Record earnings via service
+    await recordOrderEarnings(order._id);
 
     rider.status = 'available';
     rider.activeOrder = null;
-    rider.totalEarnings += deliveryFee;
     await rider.save();
 
     res.json({ message: 'Order delivered', order });

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { verifyToken, verifyPharmacy } from '../middleware/auth.js';
 import Pharmacy from '../models/Pharmacy.js';
 import Order from '../models/Order.js';
+import Earning from '../models/Earning.js';
 
 const router = express.Router();
 
@@ -254,7 +255,7 @@ router.get('/analytics', verifyPharmacy, async (req, res) => {
 
     const orders = await Order.find({ pharmacyId: req.pharmacy.id });
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalRevenue = pharmacy.totalRevenue || 0; // Use calculated revenue from field
     const averageRating = orders.length > 0 ? orders.reduce((sum, o) => sum + (o.rating?.score || 5), 0) / orders.length : 5;
 
     res.json({
@@ -270,4 +271,15 @@ router.get('/analytics', verifyPharmacy, async (req, res) => {
   }
 });
 
+// Get pharmacy earnings history
+router.get('/earnings', verifyPharmacy, async (req, res) => {
+  try {
+    const earnings = await Earning.find({ pharmacyId: req.pharmacy.id }).sort({ createdAt: -1 });
+    res.json(earnings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
+

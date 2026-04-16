@@ -498,6 +498,13 @@ export class ApiClient {
     });
   }
 
+  static async previewFees(pharmacyId: string, deliveryAddress: any, isEmergency?: boolean) {
+    return this.request<any>('/orders/fees/preview', {
+      method: 'POST',
+      body: JSON.stringify({ pharmacyId, deliveryAddress, isEmergency }),
+    });
+  }
+
   static async getUserOrders() {
     return this.request<any[]>('/orders/user/list');
   }

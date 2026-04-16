@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Phone, Clock, Package, RefreshCw, Truck } from 'lucide-react';
+import { MapPin, Phone, Clock, Package, RefreshCw, Truck, Info, Zap, CloudRain, AlertCircle } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
 
@@ -169,9 +169,70 @@ export default function TrackOrderPage() {
               </div>
             ))}
           </div>
-          <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
-            <span className="font-black text-gray-500 uppercase tracking-widest text-xs">Total Amount Paid</span>
-            <span className="text-3xl font-black text-primary">₹{order.total}</span>
+          <div className="pt-6 border-t border-gray-100 space-y-3">
+            <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+              <span>Subtotal</span>
+              <span className="text-gray-900">₹{order.subtotal}</span>
+            </div>
+            
+            <div className="flex justify-between items-center text-sm font-medium text-gray-500">
+              <span>Tax (5%)</span>
+              <span className="text-gray-900">₹{order.tax}</span>
+            </div>
+
+            {order.pricingBreakdown && (
+              <div className="bg-gray-50/80 rounded-2xl p-4 space-y-3 mt-4 border border-gray-100">
+                <div className="flex justify-between items-center group cursor-default">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <Info className="w-3.5 h-3.5" /> Delivery Breakdown
+                  </div>
+                  <span className="font-black text-gray-900 text-sm">₹{order.deliveryFee}</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-y-2 text-[11px] text-gray-500">
+                  <div className="flex justify-between border-r border-gray-100 pr-4">
+                    <span>Base Fee</span>
+                    <span className="font-bold text-gray-700">₹{order.pricingBreakdown.baseFee}</span>
+                  </div>
+                  <div className="flex justify-between pl-4">
+                    <span>Distance ({order.deliveryDistance} km)</span>
+                    <span className="font-bold text-gray-700">₹{+((order.pricingBreakdown.distanceCharge || 0) + (order.pricingBreakdown.fuelCharge || 0)).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {order.pricingBreakdown.surgeMultiplier > 1 && (
+                  <div className="pt-2 border-t border-dashed border-gray-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-black text-[10px] text-amber-600 flex items-center gap-1 uppercase tracking-widest">
+                        <Zap className="w-3 h-3" /> Surge Applied ({order.pricingBreakdown.surgeMultiplier}x)
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                       {order.pricingBreakdown.surgeFactors?.isPeakHour && (
+                         <span className="flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight">
+                           <Clock className="w-2.5 h-2.5" /> Peak Hour
+                         </span>
+                       )}
+                       {order.pricingBreakdown.surgeFactors?.isWeatherSurge && (
+                         <span className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight">
+                           <CloudRain className="w-2.5 h-2.5" /> {order.pricingBreakdown.surgeFactors?.weatherCondition || 'Weather'}
+                         </span>
+                       )}
+                       {order.isEmergency && (
+                         <span className="flex items-center gap-1 bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight">
+                           <AlertCircle className="w-2.5 h-2.5" /> Emergency
+                         </span>
+                       )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="pt-4 flex items-center justify-between border-t border-gray-100 mt-4">
+              <span className="font-black text-gray-900 uppercase tracking-widest text-xs">Total Amount Paid</span>
+              <span className="text-4xl font-black text-primary">₹{order.total}</span>
+            </div>
           </div>
         </CardContent>
       </Card>

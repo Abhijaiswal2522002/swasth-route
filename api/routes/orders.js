@@ -3,6 +3,8 @@ import { verifyToken, verifyPharmacy } from '../middleware/auth.js';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
+import { calculateDeliveryFee } from '../utils/pricingEngine.js';
+import { recordOrderEarnings } from '../services/earningService.js';
 
 const router = express.Router();
 
@@ -10,6 +12,32 @@ const router = express.Router();
 const generateOrderId = () => {
   return 'SR' + Date.now() + Math.random().toString(36).substr(2, 9).toUpperCase();
 };
+
+// Preview delivery fees
+router.post('/fees/preview', verifyToken, async (req, res) => {
+  try {
+    const { pharmacyId, deliveryAddress, isEmergency = false } = req.body;
+
+    const pharmacy = await Pharmacy.findById(pharmacyId);
+    if (!pharmacy) return res.status(404).json({ error: 'Pharmacy not found' });
+
+    const fees = await calculateDeliveryFee({
+      pharmacyCoords: {
+        lat: pharmacy.location.coordinates[1],
+        lng: pharmacy.location.coordinates[0]
+      },
+      deliveryCoords: {
+        lat: deliveryAddress.latitude,
+        lng: deliveryAddress.longitude
+      },
+      isEmergency
+    });
+
+    res.json(fees);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Create order
 router.post('/create', verifyToken, async (req, res) => {
@@ -36,10 +64,21 @@ router.post('/create', verifyToken, async (req, res) => {
       subtotal += item.subtotal;
     });
 
+    // Dynamic Pricing Engine
+    const pricing = await calculateDeliveryFee({
+      pharmacyCoords: {
+        lat: pharmacy.location.coordinates[1],
+        lng: pharmacy.location.coordinates[0]
+      },
+      deliveryCoords: {
+        lat: deliveryAddress.latitude,
+        lng: deliveryAddress.longitude
+      },
+      isEmergency
+    });
+
     const tax = Math.round(subtotal * 0.05); // 5% tax
-    const emergencyFee = isEmergency ? 100 : 0;
-    const deliveryFee = 50;
-    const total = subtotal + tax + emergencyFee + deliveryFee;
+    const total = subtotal + tax + pricing.deliveryFee;
 
     const order = new Order({
       orderId: generateOrderId(),
@@ -50,12 +89,22 @@ router.post('/create', verifyToken, async (req, res) => {
       isEmergency,
       subtotal,
       tax,
-      emergencyFee,
-      deliveryFee,
+      deliveryFee: pricing.deliveryFee,
+      emergencyFee: pricing.surgeFactors.isEmergency ? (pricing.deliveryFee * 0.33) : 0, // Approximate for display
       total,
+      riderPayout: pricing.riderPayout,
+      deliveryDistance: pricing.distanceKm,
+      pricingBreakdown: {
+        baseFee: pricing.baseFee,
+        distanceCharge: pricing.distanceCharge,
+        fuelCharge: pricing.fuelCharge,
+        surgeMultiplier: pricing.surgeMultiplier,
+        surgeFactors: pricing.surgeFactors,
+        platformFee: pricing.platformFee
+      },
       paymentMethod,
       notes,
-      estimatedDeliveryTime: isEmergency ? 30 : 60,
+      estimatedDeliveryTime: pricing.estimatedMinutes,
     });
 
     await order.save();
@@ -126,6 +175,10 @@ router.put('/:id/status', verifyPharmacy, async (req, res) => {
 
     if (status === 'delivered') {
       order.actualDeliveryTime = new Date();
+      order.paymentStatus = 'completed'; // Auto-complete payment on delivery for COD/In-app
+      
+      // Record earnings
+      await recordOrderEarnings(order._id);
     }
 
     await order.save();

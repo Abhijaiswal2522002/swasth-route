@@ -72,7 +72,7 @@ export default function CartPage() {
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
-                    
+
                     <div className="text-right">
                       <p className="font-black text-xl text-gray-900">₹{item.price * item.quantity}</p>
                     </div>
@@ -93,17 +93,14 @@ export default function CartPage() {
                     <span>Subtotal ({cartItems.reduce((acc, i) => acc + i.quantity, 0)} items)</span>
                     <span className="font-bold text-gray-900">₹{cartTotal}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Delivery Fee</span>
-                    <span className="font-bold text-green-600">Free</span>
-                  </div>
+
                 </div>
-                
+
                 <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center">
                   <span className="font-extrabold text-gray-900 text-lg">Total</span>
                   <span className="font-black text-3xl text-primary">₹{cartTotal}</span>
                 </div>
-                
+
                 <Link href="/app/checkout" className="w-full">
                   <Button className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
                     Proceed to Checkout
