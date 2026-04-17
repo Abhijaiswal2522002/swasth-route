@@ -183,6 +183,14 @@ router.put('/:id/status', verifyPharmacy, async (req, res) => {
     order.status = status;
     if (notes) order.notes = notes;
 
+    // VALIDATION: Prevent pharmacies from marking delivered/picked_up 
+    // these should be handled by riders
+    if (['delivered', 'picked_up'].includes(status)) {
+      if (order.riderId) {
+        return res.status(403).json({ error: 'This status must be updated by the assigned rider.' });
+      }
+    }
+
     if (status === 'delivered') {
       order.actualDeliveryTime = new Date();
       order.paymentStatus = 'completed'; // Auto-complete payment on delivery for COD/In-app

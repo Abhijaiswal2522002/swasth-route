@@ -9,7 +9,7 @@ import Earning from '../models/Earning.js';
 import { sendEmailVerification } from '../utils/email.js';
 import { recordOrderEarnings } from '../services/earningService.js';
 import { getIO } from '../socket.js';
-import { broadcastOrderStatus } from '../services/orderLifecycle.js';
+import { broadcastOrderStatus, reassignRider } from '../services/orderLifecycle.js';
 
 const router = express.Router();
 
@@ -233,31 +233,51 @@ router.post('/orders/:id/accept', verifyRider, async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    if (order.riderId) return res.status(400).json({ error: 'Order already assigned' });
-
     const rider = await Rider.findOne({ userId: req.rider.id });
-    if (rider.status === 'busy') return res.status(400).json({ error: 'Rider already has an active order' });
+    if (!rider) return res.status(404).json({ error: 'Rider profile not found' });
 
-    const user = await User.findById(req.rider.id);
-    
-    order.riderId = rider._id;
-    order.status = 'assigned';
-    order.tracking.deliveryAgent = {
-      id: req.rider.id,
-      name: user.name,
-      phone: user.phone
-    };
+    // Verify this rider is the one assigned
+    if (order.riderId?.toString() !== rider._id.toString()) {
+      return res.status(400).json({ error: 'This order is not assigned to you' });
+    }
 
+    if (order.status !== 'assigned') {
+      return res.status(400).json({ error: 'Order is no longer available (already picked up or cancelled)' });
+    }
+
+    // Confirm assignment: Clear the expiration timer
+    order.assignmentExpiresAt = null;
     await order.save();
-
-    rider.status = 'busy';
-    rider.activeOrder = order._id;
-    await rider.save();
 
     // Broadcast status update
     broadcastOrderStatus(order, getIO());
 
-    res.json({ message: 'Order accepted', order });
+    res.json({ message: 'Order accepted and confirmed', order });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/rider/orders/:id/reject
+router.post('/orders/:id/reject', verifyRider, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const rider = await Rider.findOne({ userId: req.rider.id });
+    if (!rider) return res.status(404).json({ error: 'Rider profile not found' });
+
+    // Verify this rider is the one assigned
+    if (order.riderId?.toString() !== rider._id.toString()) {
+      return res.status(400).json({ error: 'This order is not assigned to you' });
+    }
+
+    console.log(`[RiderAPI] Rider ${rider._id} rejected order ${order.orderId}`);
+    
+    // Trigger reassignment
+    await reassignRider(order._id, getIO());
+
+    res.json({ message: 'Order rejected. Reassigning...' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -267,8 +287,27 @@ router.post('/orders/:id/accept', verifyRider, async (req, res) => {
 router.post('/orders/:id/pickup', verifyRider, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order || order.status !== 'assigned') {
-      return res.status(400).json({ error: 'Order cannot be picked up' });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const rider = await Rider.findOne({ userId: req.rider.id });
+    if (!rider) return res.status(404).json({ error: 'Rider profile not found' });
+
+    // 1. Security Check: Is this rider assigned to the order?
+    if (order.riderId?.toString() !== rider._id.toString()) {
+      return res.status(403).json({ error: 'You are not authorized to pick up this order.' });
+    }
+
+    // 2. Status Check: Is the order in the correct state?
+    if (order.status === 'picked_up' || order.status === 'out for delivery') {
+      return res.status(400).json({ error: 'Order has already been picked up.' });
+    }
+
+    if (order.status === 'cancelled') {
+      return res.status(400).json({ error: 'Order has been cancelled and cannot be picked up.' });
+    }
+
+    if (order.status !== 'assigned') {
+      return res.status(400).json({ error: `Order cannot be picked up from current status: ${order.status}` });
     }
 
     order.status = 'picked_up';
@@ -292,8 +331,23 @@ router.post('/orders/:id/pickup', verifyRider, async (req, res) => {
 router.post('/orders/:id/deliver', verifyRider, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
-    if (!order || order.status !== 'picked_up') {
-      return res.status(400).json({ error: 'Order cannot be delivered yet' });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const rider = await Rider.findOne({ userId: req.rider.id });
+    if (!rider) return res.status(404).json({ error: 'Rider profile not found' });
+
+    // 1. Security Check: Is this rider assigned to the order?
+    if (order.riderId?.toString() !== rider._id.toString()) {
+      return res.status(403).json({ error: 'You are not authorized to deliver this order.' });
+    }
+
+    // 2. Status Check: Is the order in the correct state?
+    if (order.status === 'delivered') {
+      return res.status(400).json({ error: 'Order has already been delivered.' });
+    }
+
+    if (order.status !== 'picked_up' && order.status !== 'out for delivery') {
+      return res.status(400).json({ error: 'Order must be picked up before delivery.' });
     }
 
     order.status = 'delivered';
@@ -306,8 +360,6 @@ router.post('/orders/:id/deliver', verifyRider, async (req, res) => {
 
     await order.save();
 
-    const rider = await Rider.findOne({ userId: req.rider.id });
-    
     // Record earnings via service
     await recordOrderEarnings(order._id);
 

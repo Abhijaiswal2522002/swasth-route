@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Award, Power, Navigation, Package } from 'lucide-react';
 
 export default function RiderHomePage() {
-  const { profile, isOnline, activeOrder, handleToggleOnline } = useRider();
+  const { profile, isOnline, activeOrder, handleToggleOnline, offeredOrder, offerTimer, handleAcceptOrder, handleRejectOrder } = useRider();
   const router = useRouter();
 
   return (
@@ -84,6 +84,54 @@ export default function RiderHomePage() {
               >
                 Navigate on Map
               </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* NEW ORDER ASSIGNMENT OVERLAY */}
+      {offeredOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-zinc-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-sm rounded-[2.5rem] border-0 bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="bg-primary h-2 w-full">
+              <div 
+                className="bg-zinc-900 h-full transition-all duration-1000 ease-linear"
+                style={{ width: `${((offerTimer || 0) / 180) * 100}%` }}
+              ></div>
+            </div>
+            <CardContent className="p-8 text-center space-y-6">
+              <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto text-primary">
+                <Package className="w-10 h-10" />
+              </div>
+              
+              <div>
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">New Delivery Offer</p>
+                <h3 className="text-2xl font-black text-zinc-900 tracking-tighter">₹{offeredOrder.payout}</h3>
+                <p className="text-xs font-bold text-zinc-500 mt-1">From {offeredOrder.pharmacyName}</p>
+              </div>
+
+              <div className="flex items-center justify-center gap-4 py-2">
+                <div className="text-center">
+                   <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Time Left</p>
+                   <p className="text-xl font-black text-zinc-900">{offerTimer}s</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => handleRejectOrder(offeredOrder.dbId)}
+                  className="rounded-2xl h-14 border-zinc-100 text-zinc-400 hover:bg-zinc-50 font-black uppercase tracking-widest text-[10px]"
+                >
+                  Decline
+                </Button>
+                <Button 
+                  onClick={() => handleAcceptOrder(offeredOrder.dbId)}
+                  className="rounded-2xl h-14 bg-zinc-900 hover:bg-zinc-800 text-white shadow-xl shadow-zinc-200 font-black uppercase tracking-widest text-[10px]"
+                >
+                  Accept
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

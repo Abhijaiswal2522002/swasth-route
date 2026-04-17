@@ -35,6 +35,8 @@ interface Order {
     name: string;
     phone: string;
   };
+  riderId?: string;
+  assignmentExpiresAt?: string;
 }
 
 export default function PharmacyOrdersPage() {
@@ -305,24 +307,23 @@ export default function PharmacyOrdersPage() {
                             </Button>
                           )}
                           {(order.status === 'preparing' || order.status === 'processing') && (
-                            <Button
-                              className="rounded-2xl h-11 bg-purple-600 hover:bg-purple-700 text-white font-black uppercase tracking-widest text-[9px] px-8 shadow-lg shadow-purple-100"
-                              onClick={() => handleStatusUpdate(order._id, 'out for delivery')}
-                            >
-                              Dispatch Order
-                            </Button>
+                            <div className="flex flex-col items-end gap-2">
+                              <Badge className="bg-amber-50 text-amber-600 border-amber-100 rounded-lg px-2 py-1 text-[8px] font-black uppercase tracking-widest">
+                                {order.riderId ? 'Rider Assigned' : 'Finding Rider...'}
+                              </Badge>
+                              {!order.riderId && (
+                                <p className="text-[8px] font-bold text-gray-400 animate-pulse">Searching nearby partners</p>
+                              )}
+                            </div>
                           )}
                           {(order.status === 'out for delivery' || order.status === 'picked_up' || order.status === 'assigned') && (
                             <div className="flex flex-col items-end gap-1 px-2">
                               <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 rounded-lg px-2 py-0.5 text-[8px] font-black uppercase tracking-widest">
-                                {order.status === 'assigned' ? 'Rider Assigned' : 'Out for Delivery'}
+                                {order.status === 'assigned' 
+                                  ? (order.assignmentExpiresAt ? 'Rider Offered (15s)' : 'Rider Confirmed')
+                                  : 'Out for Delivery'}
                               </Badge>
-                              <Button
-                                className="rounded-2xl h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-[9px] px-8 shadow-lg shadow-emerald-100"
-                                onClick={() => handleStatusUpdate(order._id, 'delivered')}
-                              >
-                                Mark Delivered
-                              </Button>
+                              {/* Mark Delivered removed - now handled by Rider only */}
                             </div>
                           )}
                           <Button variant="outline" className="rounded-2xl h-11 w-11 p-0 border-gray-100 text-gray-400 hover:bg-gray-50 flex items-center justify-center">

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Map, { Marker, Popup, NavigationControl, FullscreenControl, GeolocateControl, MapMouseEvent, ViewStateChangeEvent, MarkerDragEvent } from 'react-map-gl';
-import { MapPin, Bike } from 'lucide-react';
+import Map, { Marker, Popup, NavigationControl, FullscreenControl, GeolocateControl, MapMouseEvent, ViewStateChangeEvent, MarkerDragEvent, Source, Layer } from 'react-map-gl';
+import { MapPin, Bike, Hospital, Home } from 'lucide-react';
 import SmoothMarker from './SmoothMarker';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -17,6 +17,7 @@ interface MapBoxProps {
   height?: string;
   interactive?: boolean;
   className?: string;
+  routeCoords?: [number, number][]; // Array of [lng, lat]
 }
 
 export default function MapBox({ 
@@ -28,7 +29,8 @@ export default function MapBox({
   onLocationSelect,
   height = '400px',
   interactive = true,
-  className = ""
+  className = "",
+  routeCoords = []
 }: MapBoxProps) {
   const [viewState, setViewState] = useState({
     latitude: center.lat,
@@ -79,9 +81,35 @@ export default function MapBox({
         <GeolocateControl position="top-left" trackUserLocation={true} />
         <FullscreenControl position="top-left" />
         <NavigationControl position="top-left" />
+        
+        {/* Route Visualization */}
+        {routeCoords && routeCoords.length > 1 && routeCoords.every(c => !isNaN(c[0]) && !isNaN(c[1])) && (
+          <Source id="route" type="geojson" data={{
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoords
+            }
+          }}>
+            <Layer
+              id="route-layer"
+              type="line"
+              layout={{
+                'line-cap': 'round',
+                'line-join': 'round'
+              }}
+              paint={{
+                'line-color': '#0ea5e9', // Primary color
+                'line-width': 4,
+                'line-opacity': 0.6
+              }}
+            />
+          </Source>
+        )}
 
         {/* Regular Markers */}
-        {markers.map((marker, index) => (
+        {markers.filter(m => typeof m.lat === 'number' && typeof m.lng === 'number' && !isNaN(m.lat) && !isNaN(m.lng)).map((marker, index) => (
           <Marker
             key={marker.id || index}
             latitude={marker.lat}
@@ -92,18 +120,23 @@ export default function MapBox({
               setSelectedMarker(marker);
             }}
           >
-            <div className={`cursor-pointer transition-transform hover:scale-110 drop-shadow-md`}>
-              <MapPin 
-                className={`w-8 h-8 ${marker.color || 'text-primary'}`} 
-                fill="currentColor" 
-                fillOpacity={0.2} 
-              />
+            <div className={`cursor-pointer transition-transform hover:scale-110 drop-shadow-md flex flex-col items-center`}>
+              <div className={`p-2 rounded-xl bg-white shadow-lg border-2 ${marker.color || 'border-primary'}`}>
+                {marker.type === 'pharmacy' ? (
+                  <Hospital className={`w-5 h-5 ${marker.color || 'text-primary'}`} />
+                ) : marker.type === 'user' ? (
+                  <Home className={`w-5 h-5 ${marker.color || 'text-primary'}`} />
+                ) : (
+                  <MapPin className={`w-5 h-5 ${marker.color || 'text-primary'}`} fill="currentColor" fillOpacity={0.2} />
+                )}
+              </div>
+              <div className={`w-2 h-2 rounded-full mt-1 ${marker.color || 'bg-primary'} animate-pulse`} />
             </div>
           </Marker>
         ))}
 
         {/* Rider Markers (Smoothly animated) */}
-        {riders.map((rider) => (
+        {riders.filter(r => typeof r.lat === 'number' && typeof r.lng === 'number' && !isNaN(r.lat) && !isNaN(r.lng)).map((rider) => (
           <SmoothMarker
             key={rider.id}
             id={rider.id}

@@ -711,6 +711,13 @@ export class ApiClient {
     });
   }
 
+  static async rejectRiderOrder(orderId: string) {
+    return this.request(`/rider/orders/${orderId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
   static async pickupOrder(orderId: string) {
     return this.request(`/rider/orders/${orderId}/pickup`, {
       method: 'POST',

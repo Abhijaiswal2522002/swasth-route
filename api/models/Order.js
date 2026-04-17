@@ -43,6 +43,13 @@ const OrderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Rider',
     },
+    excludedRiders: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Rider',
+      }
+    ],
+    assignmentExpiresAt: Date,
     isEmergency: {
       type: Boolean,
       default: false,

@@ -22,6 +22,7 @@ interface RiderContextType {
   handleAcceptOrder: (orderId: string) => Promise<void>;
   handlePickup: () => Promise<void>;
   handleDeliver: () => Promise<void>;
+  handleRejectOrder: (orderId: string) => Promise<void>;
   handleRegister: (data: { vehicleType: string; vehicleNumber: string }) => Promise<void>;
   fetchRiderData: () => Promise<void>;
 }
@@ -40,6 +41,8 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [earningsHistory, setEarningsHistory] = useState<any[]>([]);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [offerTimer, setOfferTimer] = useState<number | null>(null);
+  const [offeredOrder, setOfferedOrder] = useState<any>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const watchIdRef = useRef<number | null>(null);
@@ -79,14 +82,26 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       socket.on('new-order-assignment', (data) => {
         console.log('New assignment received:', data);
+        setOfferedOrder(data);
+        
+        // Start local timer
+        const expiresAt = new Date(data.expiresAt).getTime();
+        const now = new Date().getTime();
+        const diff = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        setOfferTimer(diff);
+
         toast.info(`New Order Assigned: ${data.orderId}`, {
-          description: `From ${data.pharmacyName}. Payout: ₹${data.payout}`,
-          duration: 10000,
-          action: {
-            label: 'View',
-            onClick: () => router.push('/rider/home')
-          }
+          description: `From ${data.pharmacyName}. Payout: ₹${data.payout}. You have ${diff}s to accept!`,
+          duration: 180000,
         });
+        fetchRiderData();
+      });
+
+      socket.on('order-revoked', (data) => {
+        console.log('Order revoked:', data);
+        toast.error(`Order ${data.orderId} is no longer available.`);
+        setOfferedOrder(null);
+        setOfferTimer(null);
         fetchRiderData();
       });
 
@@ -97,8 +112,8 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       socket.on('order-updated', (data) => {
         console.log('Active order updated:', data);
-        // Refresh active order state if it matches
-        if (activeOrder && data.dbId === activeOrder._id) {
+        // Refresh active order state if it matches or if it's our offered order
+        if ((activeOrder && data.dbId === activeOrder._id) || (offeredOrder && data.dbId === offeredOrder.dbId)) {
           fetchRiderData();
         }
       });
@@ -144,6 +159,23 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoading(false);
     }
   };
+
+  // Timer effect for assignment offers
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (offerTimer !== null && offerTimer > 0) {
+      interval = setInterval(() => {
+        setOfferTimer(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
+      }, 1000);
+    } else if (offerTimer === 0) {
+      // Timer expired, clean up offer
+      setOfferedOrder(null);
+      setOfferTimer(null);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [offerTimer]);
 
   // Track location when online
   useEffect(() => {
@@ -199,7 +231,16 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchRiderData();
         router.push('/rider/map');
       } else {
-        toast.error(res.error);
+        if (res.error.includes("not assigned to you") || res.error.includes("no longer available")) {
+          setOfferedOrder(null);
+          setOfferTimer(null);
+          toast.error("Offer Timed Out", {
+            description: "This order is no longer assigned to you."
+          });
+          fetchRiderData();
+        } else {
+          toast.error(res.error);
+        }
       }
     } catch (error) {
       toast.error("Failed to accept order");
@@ -234,6 +275,31 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const handleRejectOrder = async (orderId: string) => {
+    try {
+      const res = await ApiClient.rejectRiderOrder(orderId);
+      if (!res.error) {
+        toast.info("Order rejected");
+        setOfferedOrder(null);
+        setOfferTimer(null);
+        fetchRiderData();
+      } else {
+        if (res.error.includes("not assigned to you")) {
+          setOfferedOrder(null);
+          setOfferTimer(null);
+          toast.error("Offer Timed Out", {
+            description: "This assignment had already expired."
+          });
+          fetchRiderData();
+        } else {
+          toast.error(res.error);
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to reject order");
+    }
+  };
+
   const handleRegister = async (data: { vehicleType: string; vehicleNumber: string }) => {
     setIsRegistering(true);
     try {
@@ -262,7 +328,8 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <RiderContext.Provider value={{
       profile, nearbyOrders, activeOrder, isLoading, isOnline,
       currentLocation, earningsHistory, isRegistering,
-      handleToggleOnline, handleAcceptOrder, handlePickup, handleDeliver,
+      offerTimer, offeredOrder,
+      handleToggleOnline, handleAcceptOrder, handlePickup, handleDeliver, handleRejectOrder,
       handleRegister, fetchRiderData
     }}>
       {children}

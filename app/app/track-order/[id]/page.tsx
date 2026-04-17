@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MapPin, Phone, Clock, Package, RefreshCw, Truck, Info, Zap, CloudRain, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MapPin, Phone, Clock, Package, RefreshCw, Truck, Info, Zap, CloudRain, AlertCircle, Bike } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
 import { io, Socket } from 'socket.io-client';
+import MapBox from '@/components/MapBox';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -19,6 +21,7 @@ export default function TrackOrderPage() {
   
   const [order, setOrder] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [riderPos, setRiderPos] = useState<{lat: number, lng: number} | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -60,12 +63,22 @@ export default function TrackOrderPage() {
           ...prev,
           status: updatedData.status,
           tracking: updatedData.tracking,
-          estimatedDeliveryTime: updatedData.estimatedDeliveryTime
+          estimatedDeliveryTime: updatedData.estimatedDeliveryTime,
+          riderId: updatedData.riderId || prev?.riderId
         }));
+        
+        // Update rider pos if provided in order update
+        if (updatedData.tracking?.currentLocation) {
+          setRiderPos({
+            lat: updatedData.tracking.currentLocation.latitude,
+            lng: updatedData.tracking.currentLocation.longitude
+          });
+        }
       });
 
       socket.on('location-updated', (locationData) => {
         console.log('Rider location update:', locationData);
+        setRiderPos({ lat: locationData.latitude, lng: locationData.longitude });
         setOrder((prev: any) => ({
           ...prev,
           tracking: {
@@ -129,11 +142,90 @@ export default function TrackOrderPage() {
             <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">Track Order</h1>
             <p className="text-primary font-bold uppercase tracking-widest text-sm">Order ID: {order.orderId}</p>
           </div>
-          <div className="bg-primary/5 text-primary px-4 py-2 rounded-2xl border border-primary/10 font-black text-xs uppercase tracking-widest">
-            {order.status}
+          <div className="bg-primary/5 text-primary px-4 py-2 rounded-2xl border border-primary/10 font-black text-xs uppercase tracking-widest flex items-center gap-2">
+            {(order.status === 'processing' || order.status === 'accepted' || (order.status === 'assigned' && order.assignmentExpiresAt)) && !order.tracking?.deliveryAgent && (
+              <RefreshCw className="w-3 h-3 animate-spin" />
+            )}
+            {order.status === 'assigned' && order.assignmentExpiresAt ? 'Rider Offered' : order.status}
           </div>
         </div>
       </div>
+
+      {/* Cancellation Alert */}
+      {order.status === 'cancelled' && (
+        <Card className="mb-8 border-red-100 bg-red-50/50 rounded-3xl overflow-hidden shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <CardContent className="p-6 flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600 shrink-0">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-red-900 leading-none mb-1">Order Cancelled</h3>
+              <p className="text-sm font-bold text-red-700/80">
+                {order.cancellationReason === 'No rider assigned' 
+                  ? 'We couldn\'t find a delivery partner in your area. Your order has been cancelled automatically.'
+                  : order.cancellationReason || 'This order has been cancelled.'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Live Tracking Map - Only for active orders */}
+      {order && order.status !== 'delivered' && order.status !== 'cancelled' && (
+        <Card className="mb-8 border-gray-100 rounded-[2.5rem] shadow-xl shadow-gray-200/50 overflow-hidden bg-white border-2 border-white">
+          <div className="h-[350px] relative">
+            <MapBox
+              center={riderPos || { 
+                lat: order.pharmacyId?.location?.coordinates[1] || 19.076, 
+                lng: order.pharmacyId?.location?.coordinates[0] || 72.8777 
+              }}
+              zoom={13}
+              height="350px"
+              markers={[
+                {
+                  id: 'pharmacy',
+                  lat: order.pharmacyId?.location?.coordinates[1],
+                  lng: order.pharmacyId?.location?.coordinates[0],
+                  name: order.pharmacyId?.name,
+                  type: 'pharmacy',
+                  color: 'border-emerald-500 text-emerald-500'
+                },
+                {
+                  id: 'destination',
+                  lat: order.deliveryAddress?.latitude,
+                  lng: order.deliveryAddress?.longitude,
+                  name: 'Your Delivery Location',
+                  type: 'user',
+                  color: 'border-primary text-primary'
+                }
+              ]}
+              riders={riderPos ? [{
+                id: 'rider',
+                lat: riderPos.lat,
+                lng: riderPos.lng,
+                color: 'text-zinc-900'
+              }] : []}
+              routeCoords={riderPos ? [
+                [riderPos.lng, riderPos.lat],
+                [order.deliveryAddress?.longitude, order.deliveryAddress?.latitude]
+              ] : []}
+            />
+            
+            <div className="absolute bottom-4 left-4 right-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {riderPos && (
+                <Badge className="bg-white/90 backdrop-blur shadow-sm text-zinc-900 border-0 rounded-xl px-3 py-1.5 flex items-center gap-2 whitespace-nowrap">
+                  <Bike className="w-3 h-3 text-primary animate-bounce" /> 
+                  <span className="text-[10px] font-black uppercase tracking-tight">Rider is on the way</span>
+                </Badge>
+              )}
+              <Badge className="bg-white/90 backdrop-blur shadow-sm text-zinc-900 border-0 rounded-xl px-3 py-1.5 flex items-center gap-2 whitespace-nowrap">
+                <MapPin className="w-3 h-3 text-emerald-500" /> 
+                <span className="text-[10px] font-black uppercase tracking-tight">{order.pharmacyId?.name}</span>
+              </Badge>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Status Progress */}
       <Card className="mb-8 border-gray-100 rounded-3xl shadow-lg shadow-gray-200/50 overflow-hidden">
@@ -180,7 +272,11 @@ export default function TrackOrderPage() {
           <CardContent className="pt-4 space-y-4">
             <div>
               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter mb-1">Estimated Arrival</p>
-              <p className="text-2xl font-black text-primary">{statusSteps[3].completed ? 'Arrived' : `${order.estimatedDeliveryTime} mins`}</p>
+              <p className="text-2xl font-black text-primary">
+                {order.status === 'cancelled' ? '--' : 
+                 (!order.riderId || (order.status === 'assigned' && order.assignmentExpiresAt)) ? 'Finding Partner...' :
+                 statusSteps[3].completed ? 'Arrived' : `${order.estimatedDeliveryTime} mins`}
+              </p>
             </div>
             <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
               <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center text-primary">

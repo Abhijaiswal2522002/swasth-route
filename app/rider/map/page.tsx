@@ -14,34 +14,45 @@ export default function RiderMapPage() {
   const { currentLocation, nearbyOrders, activeOrder, handlePickup, handleDeliver, isLoading } = useRider();
 
   // Calculate destination based on active order status
-  const getDestinationMarker = () => {
-    if (!activeOrder) return null;
+  const getActiveOrderMarkers = () => {
+    if (!activeOrder) return [];
 
-    if (activeOrder.status === 'assigned') {
-      // Heading to Pharmacy
-      return {
-        lat: activeOrder.pharmacyId?.location?.coordinates[1] || 0,
-        lng: activeOrder.pharmacyId?.location?.coordinates[0] || 0,
-        name: `Pickup: ${activeOrder.pharmacyId?.name}`,
-        color: 'text-amber-500',
-        address: activeOrder.pharmacyId?.address?.street
-      };
-    } else if (activeOrder.status === 'picked_up') {
-      // Heading to Customer
-      return {
-        lat: activeOrder.deliveryAddress?.latitude || 0,
-        lng: activeOrder.deliveryAddress?.longitude || 0,
-        name: 'Drop-off Location',
-        color: 'text-primary',
-        address: activeOrder.deliveryAddress?.street
-      };
-    }
-    return null;
+    const markers = [];
+    
+    // Always show Pharmacy
+    markers.push({
+      id: 'pharmacy',
+      lat: activeOrder.pharmacyId?.location?.coordinates[1] || 0,
+      lng: activeOrder.pharmacyId?.location?.coordinates[0] || 0,
+      name: `Pickup: ${activeOrder.pharmacyId?.name}`,
+      type: 'pharmacy',
+      color: activeOrder.status === 'assigned' ? 'border-amber-500 text-amber-500' : 'border-zinc-300 text-zinc-300 opacity-50',
+      address: activeOrder.pharmacyId?.address?.street
+    });
+
+    // Always show Delivery Location
+    markers.push({
+      id: 'delivery',
+      lat: activeOrder.deliveryAddress?.latitude || 0,
+      lng: activeOrder.deliveryAddress?.longitude || 0,
+      name: 'Drop-off Location',
+      type: 'user',
+      color: activeOrder.status === 'picked_up' ? 'border-primary text-primary' : 'border-zinc-300 text-zinc-300 opacity-50',
+      address: activeOrder.deliveryAddress?.street
+    });
+
+    return markers;
   };
 
-  const destination = getDestinationMarker();
+  const activeMarkers = getActiveOrderMarkers();
+  
+  // Determine current destination for route drawing
+  const currentDestination = activeOrder ? (
+    activeOrder.status === 'assigned' 
+      ? { lat: activeOrder.pharmacyId?.location?.coordinates[1], lng: activeOrder.pharmacyId?.location?.coordinates[0] }
+      : { lat: activeOrder.deliveryAddress?.latitude, lng: activeOrder.deliveryAddress?.longitude }
+  ) : null;
 
-  // Combine markers: Nearby unassigned orders + Active destination
   const mapMarkers = [
     ...(nearbyOrders
       .filter(o => o.pharmacyId && o.pharmacyId.location && o.pharmacyId.location.coordinates)
@@ -49,21 +60,19 @@ export default function RiderMapPage() {
         lat: o.pharmacyId.location.coordinates[1],
         lng: o.pharmacyId.location.coordinates[0],
         name: o.pharmacyId.name,
-        color: 'text-zinc-400 opacity-50'
+        type: 'pharmacy',
+        color: 'border-zinc-100 text-zinc-300 opacity-50'
       }))
-    )
+    ),
+    ...activeMarkers
   ];
-
-  if (destination) {
-    mapMarkers.push(destination);
-  }
 
   return (
     <div className="h-[calc(100vh-14rem)] min-h-[500px] flex flex-col gap-4 animate-in fade-in duration-500">
       
       <div className="flex-1 relative rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
         <MapBox
-          center={currentLocation || (destination ? { lat: destination.lat, lng: destination.lng } : { lat: 19.076, lng: 72.8777 })}
+          center={currentLocation || (currentDestination ? { lat: currentDestination.lat, lng: currentDestination.lng } : { lat: 19.076, lng: 72.8777 })}
           zoom={14}
           markers={mapMarkers}
           riders={currentLocation ? [{
@@ -72,10 +81,14 @@ export default function RiderMapPage() {
             lng: currentLocation.lng,
             color: 'text-zinc-900'
           }] : []}
+          routeCoords={(currentLocation && currentDestination) ? [
+            [currentLocation.lng, currentLocation.lat],
+            [currentDestination.lng, currentDestination.lat]
+          ] : []}
         />
 
         {/* Floating Info Header */}
-        {activeOrder && destination && (
+        {activeOrder && activeMarkers.length > 0 && (
           <div className="absolute top-6 left-6 right-6">
             <Card className="rounded-3xl bg-white/95 backdrop-blur-md shadow-2xl p-5 border-0 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -86,8 +99,12 @@ export default function RiderMapPage() {
                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">
                     {activeOrder.status === 'assigned' ? 'Heading to Pharmacy' : 'Heading to Customer'}
                   </p>
-                  <h4 className="font-black text-lg text-zinc-900 leading-none">{destination.name}</h4>
-                  <p className="text-xs font-bold text-zinc-500 mt-1 line-clamp-1">{destination.address}</p>
+                  <h4 className="font-black text-lg text-zinc-900 leading-none">
+                    {activeOrder.status === 'assigned' ? activeOrder.pharmacyId?.name : 'User Location'}
+                  </h4>
+                  <p className="text-xs font-bold text-zinc-500 mt-1 line-clamp-1">
+                    {activeOrder.status === 'assigned' ? activeOrder.pharmacyId?.address?.street : activeOrder.deliveryAddress?.street}
+                  </p>
                 </div>
               </div>
               <Button variant="ghost" className="w-12 h-12 rounded-2xl bg-zinc-50 text-zinc-400">
