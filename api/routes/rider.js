@@ -8,6 +8,8 @@ import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
 import { sendEmailVerification } from '../utils/email.js';
 import { recordOrderEarnings } from '../services/earningService.js';
+import { getIO } from '../socket.js';
+import { broadcastOrderStatus } from '../services/orderLifecycle.js';
 
 const router = express.Router();
 
@@ -210,10 +212,13 @@ router.get('/orders/available', verifyRider, async (req, res) => {
     if (!rider) return res.status(404).json({ error: 'Rider not found' });
 
     // Find orders where status is 'accepted' or 'processing' (ready for pickup)
-    // and pharmacy is within 10km of rider
+    // and no rider is currently assigned
     const orders = await Order.find({
       status: { $in: ['accepted', 'processing'] },
-      riderId: { $exists: false }
+      $or: [
+        { riderId: { $exists: false } },
+        { riderId: null }
+      ]
     }).populate('pharmacyId', 'name address location phone');
     
     res.json(orders);
@@ -249,6 +254,9 @@ router.post('/orders/:id/accept', verifyRider, async (req, res) => {
     rider.activeOrder = order._id;
     await rider.save();
 
+    // Broadcast status update
+    broadcastOrderStatus(order, getIO());
+
     res.json({ message: 'Order accepted', order });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -270,6 +278,10 @@ router.post('/orders/:id/pickup', verifyRider, async (req, res) => {
     });
 
     await order.save();
+    
+    // Broadcast status update
+    broadcastOrderStatus(order, getIO());
+
     res.json({ message: 'Order picked up', order });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -302,6 +314,9 @@ router.post('/orders/:id/deliver', verifyRider, async (req, res) => {
     rider.status = 'available';
     rider.activeOrder = null;
     await rider.save();
+
+    // Broadcast status update
+    broadcastOrderStatus(order, getIO());
 
     res.json({ message: 'Order delivered', order });
   } catch (error) {

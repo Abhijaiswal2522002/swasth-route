@@ -10,14 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { 
-  MapPin, 
-  User, 
-  Phone, 
-  ArrowLeft, 
-  ShoppingBag, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  MapPin,
+  User,
+  Phone,
+  ArrowLeft,
+  ShoppingBag,
+  CheckCircle2,
+  AlertCircle,
   Loader2,
   Navigation,
   Plus,
@@ -29,11 +29,11 @@ import {
   ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
@@ -85,7 +85,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (selectedLocation) {
       // Check if the global selected location matches any of the user's saved addresses
-      const savedAddr = user?.addresses?.find((a: any) => 
+      const savedAddr = user?.addresses?.find((a: any) =>
         a.latitude === selectedLocation.latitude && a.longitude === selectedLocation.longitude
       );
 
@@ -115,7 +115,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchFees = async () => {
       if (cartItems.length === 0) return;
-      
+
       let deliveryAddress;
       if (isManualAddress) {
         if (!manualAddress.latitude || !manualAddress.longitude) return;
@@ -155,7 +155,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) return;
-    
+
     setIsPlacingOrder(true);
     setError(null);
 
@@ -191,7 +191,7 @@ export default function CheckoutPage() {
       }, {} as Record<string, any[]>);
 
       const pharmacyIds = Object.keys(pharmacyGroups);
-      
+
       // Perform all orders
       for (const pId of pharmacyIds) {
         const items = pharmacyGroups[pId].map(item => ({
@@ -207,7 +207,7 @@ export default function CheckoutPage() {
           items,
           deliveryAddress,
           false, // Not emergency by default here
-          'Cash on Delivery',
+          'cod',
           notes
         );
       }
@@ -265,7 +265,7 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Details */}
         <div className="lg:col-span-8 space-y-8">
-          
+
           {/* 1. Delivery Address Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -273,21 +273,20 @@ export default function CheckoutPage() {
                 <MapPin className="w-5 h-5 text-primary" /> Delivery Address
               </h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Saved Addresses */}
               {user?.addresses?.map((addr: any) => (
-                <div 
+                <div
                   key={addr._id}
                   onClick={() => {
                     setSelectedAddressId(addr._id);
                     setIsManualAddress(false);
                   }}
-                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col gap-1 ${
-                    !isManualAddress && selectedAddressId === addr._id 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-gray-100 hover:border-primary/20 bg-white'
-                  }`}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col gap-1 ${!isManualAddress && selectedAddressId === addr._id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-100 hover:border-primary/20 bg-white'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black uppercase tracking-widest text-primary">{addr.label}</span>
@@ -299,13 +298,12 @@ export default function CheckoutPage() {
               ))}
 
               {/* Manual/New Address Card */}
-              <div 
+              <div
                 onClick={() => setIsManualAddress(true)}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col gap-1 relative overflow-hidden ${
-                  isManualAddress 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-gray-100 border-dashed hover:border-primary/40 bg-gray-50/50'
-                }`}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col gap-1 relative overflow-hidden ${isManualAddress
+                  ? 'border-primary bg-primary/5'
+                  : 'border-gray-100 border-dashed hover:border-primary/40 bg-gray-50/50'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase tracking-widest text-primary">New Address</span>
@@ -315,9 +313,9 @@ export default function CheckoutPage() {
                   <>
                     <p className="font-bold text-gray-900 mt-1 line-clamp-1">{manualAddress.street}</p>
                     <p className="text-xs text-secondary-foreground/60">{manualAddress.city} {manualAddress.pincode}</p>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); setIsMapModalOpen(true); }}
                       className="mt-2 h-7 text-[10px] font-bold uppercase tracking-widest gap-1 p-0 hover:bg-transparent text-primary"
                     >
@@ -339,8 +337,8 @@ export default function CheckoutPage() {
                 <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 col-span-1 md:col-span-2">
                     <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Street / Area / House No.</Label>
-                    <Input 
-                      value={manualAddress.street} 
+                    <Input
+                      value={manualAddress.street}
                       onChange={(e) => setManualAddress(p => ({ ...p, street: e.target.value }))}
                       placeholder="e.g. Flat 402, Sunshine Apts"
                       className="rounded-xl border-gray-100"
@@ -348,8 +346,8 @@ export default function CheckoutPage() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">City</Label>
-                    <Input 
-                      value={manualAddress.city} 
+                    <Input
+                      value={manualAddress.city}
                       onChange={(e) => setManualAddress(p => ({ ...p, city: e.target.value }))}
                       placeholder="City"
                       className="rounded-xl border-gray-100"
@@ -357,8 +355,8 @@ export default function CheckoutPage() {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Pincode</Label>
-                    <Input 
-                      value={manualAddress.pincode} 
+                    <Input
+                      value={manualAddress.pincode}
                       onChange={(e) => setManualAddress(p => ({ ...p, pincode: e.target.value }))}
                       placeholder="123456"
                       maxLength={6}
@@ -378,8 +376,8 @@ export default function CheckoutPage() {
               </h2>
               <div className="flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-full border">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Order for someone else?</span>
-                <Switch 
-                  checked={orderForOthers} 
+                <Switch
+                  checked={orderForOthers}
                   onCheckedChange={setOrderForOthers}
                   className="data-[state=checked]:bg-primary"
                 />
@@ -393,8 +391,8 @@ export default function CheckoutPage() {
                     <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Recipient Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input 
-                        value={recipient.name} 
+                      <Input
+                        value={recipient.name}
                         onChange={(e) => setRecipient(p => ({ ...p, name: e.target.value }))}
                         placeholder="e.g. John Doe"
                         className="rounded-xl border-gray-100 pl-10"
@@ -405,8 +403,8 @@ export default function CheckoutPage() {
                     <Label className="text-xs font-bold uppercase tracking-widest text-gray-500">Recipient Phone</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <Input 
-                        value={recipient.phone} 
+                      <Input
+                        value={recipient.phone}
                         onChange={(e) => setRecipient(p => ({ ...p, phone: e.target.value }))}
                         placeholder="10-digit mobile number"
                         maxLength={10}
@@ -417,7 +415,7 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
             )}
-            
+
             {!orderForOthers && (
               <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-gray-500 text-sm italic">
                 Delivering to yourself ({user?.name || 'User'})
@@ -428,7 +426,7 @@ export default function CheckoutPage() {
           {/* 3. Payment Method (Placeholder for now) */}
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-               Cash on Delivery
+              Cash on Delivery
             </h2>
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
               <div className="h-10 w-10 flex items-center justify-center bg-white rounded-full shadow-sm text-emerald-600">
@@ -493,7 +491,7 @@ export default function CheckoutPage() {
                         return (
                           <div key={pId} className="space-y-2 last:border-0 border-b border-gray-100 pb-2 last:pb-0">
                             <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">{pharmacyName}</p>
-                            
+
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-500">
                               <div className="flex justify-between">
                                 <span>Base Fee</span>
@@ -540,7 +538,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
               </div>
-              
+
               <div className="border-t border-dashed border-gray-200 pt-4 flex justify-between items-center">
                 <span className="font-extrabold text-gray-900 text-lg">Total</span>
                 <span className="font-black text-3xl text-primary">₹{cartTotal + feesBreakdown.totalDeliveryFee}</span>
@@ -552,8 +550,8 @@ export default function CheckoutPage() {
                   {error}
                 </div>
               )}
-              
-              <Button 
+
+              <Button
                 onClick={handlePlaceOrder}
                 disabled={isPlacingOrder || cartItems.length === 0}
                 className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2"
@@ -591,46 +589,46 @@ export default function CheckoutPage() {
           </DialogHeader>
 
           <div className="relative h-[450px]">
-             <MapBox 
-               isPicker={true}
-               center={manualAddress.latitude ? { lat: manualAddress.latitude, lng: manualAddress.longitude } : { lat: 19.076, lng: 72.8777 }}
-               onLocationSelect={onLocationSelect}
-               height="450px"
-             />
-             
-             {isLocating && (
-               <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
-                 <div className="bg-white p-4 rounded-2xl shadow-xl flex items-center gap-3">
-                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                   <span className="text-sm font-bold text-gray-700">Detecting Address...</span>
-                 </div>
-               </div>
-             )}
+            <MapBox
+              isPicker={true}
+              center={manualAddress.latitude ? { lat: manualAddress.latitude, lng: manualAddress.longitude } : { lat: 19.076, lng: 72.8777 }}
+              onLocationSelect={onLocationSelect}
+              height="450px"
+            />
+
+            {isLocating && (
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
+                <div className="bg-white p-4 rounded-2xl shadow-xl flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm font-bold text-gray-700">Detecting Address...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="p-6 bg-gray-50 flex flex-col md:flex-row gap-4 sm:justify-between border-t border-gray-100">
-             <div className="flex-1">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Detected Area</p>
-                <p className="text-sm font-bold text-gray-700 line-clamp-1">
-                  {manualAddress.street || 'Select a point on the map'}
-                </p>
-             </div>
-             <div className="flex gap-3 shrink-0">
-               <Button 
-                 variant="ghost" 
-                 className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400"
-                 onClick={() => setIsMapModalOpen(false)}
-               >
-                 Cancel
-               </Button>
-               <Button 
-                 className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest px-8 shadow-lg shadow-primary/20"
-                 onClick={() => setIsMapModalOpen(false)}
-                 disabled={!manualAddress.street}
-               >
-                 Confirm Location
-               </Button>
-             </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Detected Area</p>
+              <p className="text-sm font-bold text-gray-700 line-clamp-1">
+                {manualAddress.street || 'Select a point on the map'}
+              </p>
+            </div>
+            <div className="flex gap-3 shrink-0">
+              <Button
+                variant="ghost"
+                className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-400"
+                onClick={() => setIsMapModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest px-8 shadow-lg shadow-primary/20"
+                onClick={() => setIsMapModalOpen(false)}
+                disabled={!manualAddress.street}
+              >
+                Confirm Location
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Phone, Clock, Package, RefreshCw, Truck, Info, Zap, CloudRain, AlertCircle } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
+import { io, Socket } from 'socket.io-client';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function TrackOrderPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,7 +40,47 @@ export default function TrackOrderPage() {
           setIsLoading(false);
         }
       };
+      
       fetchOrder();
+
+      // Initialize Socket with WebSocket priority
+      const socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling']
+      });
+      
+      socket.on('connect', () => {
+        console.log('Tracking Socket connected');
+        socket.emit('join-order', orderId);
+        socket.emit('join-room', `order-${orderId}`);
+      });
+
+      socket.on('order-updated', (updatedData) => {
+        console.log('Real-time order update:', updatedData);
+        setOrder((prev: any) => ({
+          ...prev,
+          status: updatedData.status,
+          tracking: updatedData.tracking,
+          estimatedDeliveryTime: updatedData.estimatedDeliveryTime
+        }));
+      });
+
+      socket.on('location-updated', (locationData) => {
+        console.log('Rider location update:', locationData);
+        setOrder((prev: any) => ({
+          ...prev,
+          tracking: {
+            ...prev?.tracking,
+            currentLocation: {
+              latitude: locationData.latitude,
+              longitude: locationData.longitude
+            }
+          }
+        }));
+      });
+
+      return () => {
+        socket.disconnect();
+      };
     }
   }, [user, authLoading, orderId, router]);
 
@@ -60,10 +103,22 @@ export default function TrackOrderPage() {
   }
 
   const statusSteps = [
-    { label: 'Order Confirmed', completed: ['pending', 'accepted', 'out for delivery', 'delivered'].includes(order.status) },
-    { label: 'Preparing', completed: ['accepted', 'out for delivery', 'delivered'].includes(order.status) },
-    { label: 'Out for Delivery', completed: ['out for delivery', 'delivered'].includes(order.status) },
-    { label: 'Delivered', completed: order.status === 'delivered' },
+    { 
+      label: 'Order Confirmed', 
+      completed: ['pending', 'accepted', 'processing', 'assigned', 'picked_up', 'out for delivery', 'delivered'].includes(order.status) 
+    },
+    { 
+      label: 'Preparing', 
+      completed: ['processing', 'assigned', 'picked_up', 'out for delivery', 'delivered'].includes(order.status) 
+    },
+    { 
+      label: 'Out for Delivery', 
+      completed: ['assigned', 'picked_up', 'out for delivery', 'delivered'].includes(order.status) 
+    },
+    { 
+      label: 'Delivered', 
+      completed: order.status === 'delivered' 
+    },
   ];
 
   return (

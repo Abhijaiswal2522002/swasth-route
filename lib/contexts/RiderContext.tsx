@@ -48,17 +48,72 @@ export const RiderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (user && user.role === 'rider') {
       fetchRiderData();
       initSocket();
+      
+      // Get initial location immediately even if offline
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            setCurrentLocation({ lat: latitude, lng: longitude });
+          },
+          (err) => console.log('Initial geolocation failed, using default'),
+          { enableHighAccuracy: false, timeout: 5000 }
+        );
+      }
     } else {
       setIsLoading(false);
     }
   }, [user]);
 
   const initSocket = () => {
-    if (!socketRef.current) {
-      socketRef.current = io(SOCKET_URL);
-      console.log('Rider Socket initialized');
+    if (!socketRef.current && user) {
+      const socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling']
+      });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.log('Rider Socket connected');
+        socket.emit('join-room', `rider-${user.id}`);
+      });
+
+      socket.on('new-order-assignment', (data) => {
+        console.log('New assignment received:', data);
+        toast.info(`New Order Assigned: ${data.orderId}`, {
+          description: `From ${data.pharmacyName}. Payout: ₹${data.payout}`,
+          duration: 10000,
+          action: {
+            label: 'View',
+            onClick: () => router.push('/rider/home')
+          }
+        });
+        fetchRiderData();
+      });
+
+      socket.on('new-order-available', () => {
+        console.log('New orders available nearby');
+        fetchRiderData();
+      });
+
+      socket.on('order-updated', (data) => {
+        console.log('Active order updated:', data);
+        // Refresh active order state if it matches
+        if (activeOrder && data.dbId === activeOrder._id) {
+          fetchRiderData();
+        }
+      });
     }
   };
+
+  // Socket cleanup
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
 
   const fetchRiderData = async () => {
     setIsLoading(true);

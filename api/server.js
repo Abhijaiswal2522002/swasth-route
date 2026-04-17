@@ -17,6 +17,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import connectDB from './config/mongodb.js';
 
+import { initSocket } from './socket.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -25,46 +27,15 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: "*", // Adjust for production
-    methods: ["GET", "POST"]
-  }
-});
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
-
-  socket.on('join-order', (orderId) => {
-    socket.join(`order-${orderId}`);
-    console.log(`Socket ${socket.id} joined order-${orderId}`);
-  });
-
-  socket.on('update-location', (data) => {
-    const { orderId, latitude, longitude, riderId } = data;
-    // Broadcast location update to anyone tracking this order
-    io.to(`order-${orderId}`).emit('location-updated', {
-      latitude,
-      longitude,
-      riderId,
-      timestamp: new Date()
-    });
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-});
-
-// Middleware
+// CORS configuration shared between Express and Socket.io
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   process.env.FRONTEND_URL
 ].filter(Boolean).map(url => url.replace(/\/$/, ''));
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
@@ -80,7 +51,13 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-}));
+};
+
+// Initialize Socket.io via the new socket manager with identical CORS
+const io = initSocket(httpServer, corsOptions);
+
+// Middleware
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

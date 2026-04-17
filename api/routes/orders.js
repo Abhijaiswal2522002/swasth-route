@@ -5,6 +5,8 @@ import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
 import { calculateDeliveryFee } from '../utils/pricingEngine.js';
 import { recordOrderEarnings } from '../services/earningService.js';
+import { getIO } from '../socket.js';
+import { broadcastOrderStatus, smartAssignRider } from '../services/orderLifecycle.js';
 
 const router = express.Router();
 
@@ -109,6 +111,14 @@ router.post('/create', verifyToken, async (req, res) => {
 
     await order.save();
 
+    // Notify pharmacy about new order
+    getIO().to(`pharmacy-${pharmacyId}`).emit('new-order', {
+      orderId: order.orderId,
+      dbId: order._id,
+      total: order.total,
+      itemsCount: order.items.length
+    });
+
     // Update user orders count
     user.totalOrders += 1;
     user.orders.push({ orderId: order._id, status: 'pending' });
@@ -177,11 +187,23 @@ router.put('/:id/status', verifyPharmacy, async (req, res) => {
       order.actualDeliveryTime = new Date();
       order.paymentStatus = 'completed'; // Auto-complete payment on delivery for COD/In-app
       
+      // Save order first so recordOrderEarnings can verify the 'delivered' status
+      await order.save();
+      
       // Record earnings
       await recordOrderEarnings(order._id);
+    } else {
+      await order.save();
     }
 
-    await order.save();
+    const io = getIO();
+    // Broadcast status update
+    broadcastOrderStatus(order, io);
+
+    // If order was moved to 'processing' (accepted + prepared), try smart assignment
+    if (status === 'processing' && !order.riderId) {
+      smartAssignRider(order._id, io);
+    }
 
     res.json({ message: 'Order status updated', order });
   } catch (error) {
@@ -210,6 +232,9 @@ router.put('/:id/accept', verifyPharmacy, async (req, res) => {
 
     await order.save();
 
+    // Broadcast status update
+    broadcastOrderStatus(order, getIO());
+
     res.json({ message: 'Order accepted', order });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -234,6 +259,9 @@ router.put('/:id/reject', verifyPharmacy, async (req, res) => {
     order.cancellationReason = reason;
 
     await order.save();
+
+    // Broadcast status update
+    broadcastOrderStatus(order, getIO());
 
     res.json({ message: 'Order rejected', order });
   } catch (error) {

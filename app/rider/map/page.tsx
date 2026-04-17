@@ -3,36 +3,141 @@
 import React from 'react';
 import { useRider } from '@/lib/contexts/RiderContext';
 import { Card } from '@/components/ui/card';
-import { Navigation } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Navigation, MapPin, Package, CheckCircle, Phone, ArrowRight } from 'lucide-react';
 import MapBox from '@/components/MapBox';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function RiderMapPage() {
-  const { currentLocation, nearbyOrders, activeOrder } = useRider();
+  const { user } = useAuth();
+  const { currentLocation, nearbyOrders, activeOrder, handlePickup, handleDeliver, isLoading } = useRider();
+
+  // Calculate destination based on active order status
+  const getDestinationMarker = () => {
+    if (!activeOrder) return null;
+
+    if (activeOrder.status === 'assigned') {
+      // Heading to Pharmacy
+      return {
+        lat: activeOrder.pharmacyId?.location?.coordinates[1] || 0,
+        lng: activeOrder.pharmacyId?.location?.coordinates[0] || 0,
+        name: `Pickup: ${activeOrder.pharmacyId?.name}`,
+        color: 'text-amber-500',
+        address: activeOrder.pharmacyId?.address?.street
+      };
+    } else if (activeOrder.status === 'picked_up') {
+      // Heading to Customer
+      return {
+        lat: activeOrder.deliveryAddress?.latitude || 0,
+        lng: activeOrder.deliveryAddress?.longitude || 0,
+        name: 'Drop-off Location',
+        color: 'text-primary',
+        address: activeOrder.deliveryAddress?.street
+      };
+    }
+    return null;
+  };
+
+  const destination = getDestinationMarker();
+
+  // Combine markers: Nearby unassigned orders + Active destination
+  const mapMarkers = [
+    ...(nearbyOrders
+      .filter(o => o.pharmacyId && o.pharmacyId.location && o.pharmacyId.location.coordinates)
+      .map(o => ({
+        lat: o.pharmacyId.location.coordinates[1],
+        lng: o.pharmacyId.location.coordinates[0],
+        name: o.pharmacyId.name,
+        color: 'text-zinc-400 opacity-50'
+      }))
+    )
+  ];
+
+  if (destination) {
+    mapMarkers.push(destination);
+  }
 
   return (
-    <div className="h-[calc(100vh-16rem)] min-h-[400px] rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white relative animate-in zoom-in duration-500">
-      <MapBox
-        center={currentLocation || { lat: 19.076, lng: 72.8777 }}
-        zoom={14}
-        markers={nearbyOrders.map(o => ({
-          lat: o.pharmacyId?.location?.coordinates[1] || 0,
-          lng: o.pharmacyId?.location?.coordinates[0] || 0,
-          name: o.pharmacyId?.name,
-          color: 'text-amber-500'
-        }))}
-      />
-      {activeOrder && (
-        <div className="absolute top-6 left-6 right-6">
-          <Card className="rounded-2xl bg-white/90 backdrop-blur-md shadow-xl p-4 border-0">
-            <div className="flex items-center gap-3">
-              <Navigation className="w-5 h-5 text-primary" />
-              <div>
-                <p className="text-[8px] font-black text-zinc-400 uppercase">Navigating to</p>
-                <h4 className="font-black text-xs text-zinc-900 leading-none mt-0.5">{activeOrder.status === 'assigned' ? activeOrder.pharmacyId?.name : activeOrder.deliveryAddress?.street}</h4>
+    <div className="h-[calc(100vh-14rem)] min-h-[500px] flex flex-col gap-4 animate-in fade-in duration-500">
+      
+      <div className="flex-1 relative rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
+        <MapBox
+          center={currentLocation || (destination ? { lat: destination.lat, lng: destination.lng } : { lat: 19.076, lng: 72.8777 })}
+          zoom={14}
+          markers={mapMarkers}
+          riders={currentLocation ? [{
+            id: user?.id || 'me',
+            lat: currentLocation.lat,
+            lng: currentLocation.lng,
+            color: 'text-zinc-900'
+          }] : []}
+        />
+
+        {/* Floating Info Header */}
+        {activeOrder && destination && (
+          <div className="absolute top-6 left-6 right-6">
+            <Card className="rounded-3xl bg-white/95 backdrop-blur-md shadow-2xl p-5 border-0 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                  <Navigation className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">
+                    {activeOrder.status === 'assigned' ? 'Heading to Pharmacy' : 'Heading to Customer'}
+                  </p>
+                  <h4 className="font-black text-lg text-zinc-900 leading-none">{destination.name}</h4>
+                  <p className="text-xs font-bold text-zinc-500 mt-1 line-clamp-1">{destination.address}</p>
+                </div>
               </div>
+              <Button variant="ghost" className="w-12 h-12 rounded-2xl bg-zinc-50 text-zinc-400">
+                <Phone className="w-5 h-5" />
+              </Button>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* ACTION PANEL */}
+      {activeOrder ? (
+        <Card className="rounded-[2.5rem] border-0 bg-white shadow-xl p-6 mb-2">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Badge className="bg-primary/10 text-primary border-0 rounded-lg px-3 py-1 text-[10px] font-black uppercase">
+                {activeOrder.status.replace('_', ' ')}
+              </Badge>
+              <p className="text-xs font-bold text-zinc-400">Order ID: {activeOrder.orderId}</p>
             </div>
-          </Card>
-        </div>
+            <p className="text-sm font-black text-zinc-900">₹{activeOrder.riderPayout || activeOrder.total}</p>
+          </div>
+
+          <div className="flex gap-4">
+            {activeOrder.status === 'assigned' && (
+              <Button 
+                onClick={handlePickup}
+                className="flex-1 h-16 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-lg shadow-zinc-200"
+              >
+                <Package className="w-5 h-5" /> Confirm Pickup
+              </Button>
+            )}
+            {activeOrder.status === 'picked_up' && (
+              <Button 
+                onClick={handleDeliver}
+                className="flex-1 h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-lg shadow-emerald-200"
+              >
+                <CheckCircle className="w-5 h-5" /> Mark Delivered
+              </Button>
+            )}
+            <Button variant="outline" className="h-16 w-16 rounded-2xl border-zinc-100 bg-zinc-50 text-zinc-400 flex items-center justify-center">
+              <ArrowRight className="w-6 h-6" />
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Card className="rounded-[2.5rem] border-0 bg-white shadow-lg p-8 text-center space-y-3">
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">No Active Route</p>
+          <p className="text-sm font-medium text-zinc-500">Accept an order from the dashboard to see navigation markers and actions.</p>
+        </Card>
       )}
     </div>
   );
