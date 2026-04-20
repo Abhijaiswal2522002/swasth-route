@@ -3,6 +3,7 @@ import { verifyAdmin } from '../middleware/auth.js';
 import Pharmacy from '../models/Pharmacy.js';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
+import Rider from '../models/Rider.js';
 
 const router = express.Router();
 
@@ -151,7 +152,17 @@ router.get('/users', verifyAdmin, async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
 
-    res.json(users);
+    const usersWithStats = await Promise.all(
+      users.map(async (user) => {
+        const totalOrders = await Order.countDocuments({ userId: user._id });
+        return {
+          ...user.toObject(),
+          totalOrders,
+        };
+      })
+    );
+
+    res.json(usersWithStats);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -175,18 +186,81 @@ router.get('/users/:id', verifyAdmin, async (req, res) => {
 // Get platform analytics
 router.get('/analytics/dashboard', verifyAdmin, async (req, res) => {
   try {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 7);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(now.getDate() - 14);
+
+    // --- KPI counts ---
     const totalUsers = await User.countDocuments();
     const totalPharmacies = await Pharmacy.countDocuments({ status: 'active' });
-    const totalRiders = await User.countDocuments({ role: 'rider' });
-    const activeRiders = await User.countDocuments({ role: 'rider', isActive: true });
-    
+    const pendingPharmacies = await Pharmacy.countDocuments({ status: 'pending' });
+
+    // Riders live in their own collection
+    const totalRiders = await Rider.countDocuments();
+    const activeRiders = await Rider.countDocuments({ status: { $in: ['available', 'busy'] } });
+
     const totalOrders = await Order.countDocuments();
     const deliveredOrders = await Order.countDocuments({ status: 'delivered' });
 
-    const orders = await Order.find();
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const allOrders = await Order.find({}, 'total createdAt');
+    const totalRevenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
-    const pendingPharmacies = await Pharmacy.countDocuments({ status: 'pending' });
+    // --- Trend: compare last 7 days vs previous 7 days ---
+    const ordersThisWeek = allOrders.filter(o => new Date(o.createdAt) >= sevenDaysAgo);
+    const ordersPrevWeek = allOrders.filter(
+      o => new Date(o.createdAt) >= fourteenDaysAgo && new Date(o.createdAt) < sevenDaysAgo
+    );
+
+    const revenueThisWeek = ordersThisWeek.reduce((s, o) => s + (o.total || 0), 0);
+    const revenuePrevWeek = ordersPrevWeek.reduce((s, o) => s + (o.total || 0), 0);
+
+    const calcTrend = (current, previous) => {
+      if (previous === 0) return current > 0 ? '+100.0' : '0.0';
+      return ((current - previous) / previous * 100).toFixed(1);
+    };
+
+    const revenueTrend = calcTrend(revenueThisWeek, revenuePrevWeek);
+    const ordersTrend = calcTrend(ordersThisWeek.length, ordersPrevWeek.length);
+
+    // --- 7-Day Revenue & Orders Chart ---
+    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const revenueChart = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(now);
+      dayStart.setDate(now.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayOrders = allOrders.filter(o => {
+        const d = new Date(o.createdAt);
+        return d >= dayStart && d <= dayEnd;
+      });
+
+      revenueChart.push({
+        name: DAY_NAMES[dayStart.getDay()],
+        revenue: Math.round(dayOrders.reduce((s, o) => s + (o.total || 0), 0)),
+        orders: dayOrders.length,
+      });
+    }
+
+    // --- Recent Riders ---
+    const recentRiders = await Rider.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('userId', 'name phone');
+
+    const recentRidersList = recentRiders.map(r => ({
+      _id: r._id,
+      name: r.userId?.name || 'Unknown',
+      phone: r.userId?.phone || '',
+      vehicleType: r.vehicleType,
+      status: r.status,
+      rating: r.rating,
+      totalEarnings: r.totalEarnings,
+    }));
 
     res.json({
       totalUsers,
@@ -198,6 +272,10 @@ router.get('/analytics/dashboard', verifyAdmin, async (req, res) => {
       totalRevenue,
       pendingPharmacies,
       orderFulfillmentRate: (deliveredOrders / (totalOrders || 1) * 100).toFixed(2) + '%',
+      revenueTrend,
+      ordersTrend,
+      revenueChart,
+      recentRiders: recentRidersList,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
