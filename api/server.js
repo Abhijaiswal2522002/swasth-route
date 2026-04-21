@@ -10,6 +10,7 @@ import adminRoutes from './routes/admin.js';
 import medicineRoutes from './routes/medicines.js';
 import cartRoutes from './routes/cart.js';
 import riderRoutes from './routes/rider.js';
+import medicineRequestRoutes from './routes/medicineRequests.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
@@ -70,6 +71,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/medicines', medicineRoutes);
+app.use('/api/medicine-requests', medicineRequestRoutes);
 app.use('/api/rider', riderRoutes);
 
 // Health check

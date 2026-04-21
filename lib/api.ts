@@ -743,6 +743,39 @@ export class ApiClient {
     });
   }
 
+  // Medicine Request endpoints
+  static async createMedicineRequest(payload: {
+    medicineName: string,
+    quantity: number,
+    deliveryAddress: any,
+    paymentMethod: string
+  }) {
+    return this.request('/medicine-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async getNearbyMedicineRequests(lat: number, lng: number, radius?: number) {
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+      ...(radius && { radius: radius.toString() }),
+    });
+    return this.request<any[]>(`/medicine-requests/nearby?${params}`);
+  }
+
+  static async getUserMedicineRequests() {
+    return this.request<any[]>('/medicine-requests/user');
+  }
+
+  static async acceptMedicineRequest(requestId: string, price: number) {
+    return this.request(`/medicine-requests/${requestId}/accept`, {
+      method: 'POST',
+      body: JSON.stringify({ price }),
+    });
+  }
+
 }
 
 export default ApiClient;

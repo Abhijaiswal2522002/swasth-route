@@ -3,12 +3,23 @@
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Pill, Search, RefreshCw, Store, MapPin } from 'lucide-react';
+import { Pill, Search, RefreshCw, Store, MapPin, Plus } from 'lucide-react';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ApiClient from '@/lib/api';
 import { useCart } from '@/lib/context/CartContext';
 import { useLocation } from '@/lib/context/LocationContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 function MedicinesContent() {
   const { user, loading: authLoading } = useAuth();
@@ -23,6 +34,53 @@ function MedicinesContent() {
   const [pharmacies, setPharmacies] = useState<any[]>([]);
   const [allMedicines, setAllMedicines] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestData, setRequestData] = useState({
+    quantity: 1,
+    paymentMethod: 'COD'
+  });
+
+  const handleRaiseRequest = async () => {
+    if (!searchTerm) {
+      toast.error("Please enter a medicine name first");
+      return;
+    }
+
+    if (!selectedLocation && (!user?.addresses || user.addresses.length === 0)) {
+      toast.error("Please select a delivery address first");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const address = selectedLocation || user?.addresses[0];
+      const res = await ApiClient.createMedicineRequest({
+        medicineName: searchTerm,
+        quantity: requestData.quantity,
+        paymentMethod: requestData.paymentMethod,
+        deliveryAddress: {
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+          latitude: address.latitude,
+          longitude: address.longitude,
+        }
+      });
+
+      if (res.data) {
+        toast.success("Medicine request raised successfully! Nearby pharmacies will see it.");
+        setIsRequestModalOpen(false);
+      } else {
+        toast.error(res.error || "Failed to raise request");
+      }
+    } catch (error) {
+      toast.error("An error occurred while raising request");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -191,10 +249,104 @@ function MedicinesContent() {
               <Pill className="w-10 h-10 text-gray-300" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">No medicines found</h3>
-            <p className="text-gray-500 max-w-sm mx-auto font-medium">Try searching for something else or check pharmacies in a different area.</p>
+            <p className="text-gray-500 max-w-sm mx-auto font-medium mb-6">Try searching for something else or check pharmacies in a different area.</p>
+            <Button 
+                onClick={() => setIsRequestModalOpen(true)}
+                className="rounded-full px-8 h-12 font-bold shadow-lg shadow-primary/20"
+            >
+                <Plus className="w-5 h-5 mr-2" />
+                Raise a Request
+            </Button>
           </div>
         )}
       </div>
+
+      <Dialog open={isRequestModalOpen} onOpenChange={setIsRequestModalOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Raise Medicine Request</DialogTitle>
+            <DialogDescription className="font-medium text-gray-500">
+              Can't find "{searchTerm}"? Request it from nearby pharmacies.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="medicine" className="text-sm font-bold text-gray-700">Medicine Name</Label>
+              <Input
+                id="medicine"
+                value={searchTerm}
+                readOnly
+                className="rounded-xl bg-gray-50 border-none font-medium h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quantity" className="text-sm font-bold text-gray-700">Quantity Needed</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                value={requestData.quantity}
+                onChange={(e) => setRequestData({ ...requestData, quantity: parseInt(e.target.value) || 1 })}
+                className="rounded-xl bg-gray-50 border-none font-medium h-12"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-bold text-gray-700">Payment Preference</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRequestData({ ...requestData, paymentMethod: 'COD' })}
+                  className={`py-3 rounded-xl border-2 transition-all font-bold text-sm ${
+                    requestData.paymentMethod === 'COD' 
+                    ? 'border-primary bg-primary/5 text-primary' 
+                    : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'
+                  }`}
+                >
+                  Cash on Delivery
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequestData({ ...requestData, paymentMethod: 'Prepaid' })}
+                  className={`py-3 rounded-xl border-2 transition-all font-bold text-sm ${
+                    requestData.paymentMethod === 'Prepaid' 
+                    ? 'border-primary bg-primary/5 text-primary' 
+                    : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'
+                  }`}
+                >
+                  Prepaid
+                </button>
+              </div>
+            </div>
+            <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                <div className="flex items-start gap-3">
+                    <MapPin className="w-5 h-5 text-blue-500 mt-0.5" />
+                    <div>
+                        <p className="text-xs font-black text-blue-900 uppercase tracking-tight">Delivery Address</p>
+                        <p className="text-sm font-medium text-blue-700 line-clamp-1">
+                            {selectedLocation?.street || user?.addresses?.[0]?.street || 'No address selected'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleRaiseRequest}
+              disabled={isSubmitting}
+              className="w-full rounded-2xl h-14 text-lg font-black shadow-xl shadow-primary/20"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                  Broadcasting...
+                </>
+              ) : (
+                'Broadcast Request'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
