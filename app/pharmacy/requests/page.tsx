@@ -26,6 +26,7 @@ export default function PharmacyRequestsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [quotePrice, setQuotePrice] = useState<string>('');
+  const [expectedDate, setExpectedDate] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -62,6 +63,7 @@ export default function PharmacyRequestsPage() {
   const handleAcceptClick = (request: any) => {
     setSelectedRequest(request);
     setQuotePrice('');
+    setExpectedDate('');
     setIsAcceptModalOpen(true);
   };
 
@@ -70,19 +72,23 @@ export default function PharmacyRequestsPage() {
       toast.error('Please enter a valid price');
       return;
     }
+    if (!expectedDate) {
+      toast.error('Please enter an expected delivery date/time');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const res = await ApiClient.acceptMedicineRequest(selectedRequest._id, parseFloat(quotePrice));
+      const res = await ApiClient.offerMedicineRequest(selectedRequest._id, parseFloat(quotePrice), expectedDate);
       if (res.data) {
-        toast.success('Request accepted! Order has been created.');
+        toast.success('Offer sent to user!');
         setIsAcceptModalOpen(false);
         fetchNearbyRequests(); // Refresh list
       } else {
-        toast.error(res.error || 'Failed to accept request');
+        toast.error(res.error || 'Failed to send offer');
       }
     } catch (error) {
-      toast.error('An error occurred while accepting request');
+      toast.error('An error occurred while sending offer');
     } finally {
       setIsSubmitting(false);
     }
@@ -153,12 +159,18 @@ export default function PharmacyRequestsPage() {
                         <Clock className="w-4 h-4" />
                         {new Date(request.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    <Button 
-                        onClick={() => handleAcceptClick(request)}
-                        className="rounded-2xl px-8 h-12 font-black shadow-lg shadow-primary/20"
-                    >
-                        Accept & Fulfillment
-                    </Button>
+                    {request.status === 'Offered' ? (
+                        <div className="px-6 py-3 bg-amber-50 text-amber-700 rounded-2xl text-sm font-black text-center shadow-inner">
+                            Offer Sent
+                        </div>
+                    ) : (
+                        <Button 
+                            onClick={() => handleAcceptClick(request)}
+                            className="rounded-2xl px-8 h-12 font-black shadow-lg shadow-primary/20"
+                        >
+                            Make Offer
+                        </Button>
+                    )}
                 </div>
               </CardContent>
             </Card>
@@ -170,9 +182,9 @@ export default function PharmacyRequestsPage() {
       <Dialog open={isAcceptModalOpen} onOpenChange={setIsAcceptModalOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Fulfill Medicine Request</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Make an Offer</DialogTitle>
             <DialogDescription className="font-medium text-gray-500">
-              Enter the unit price you will charge for this medicine.
+              Provide your unit price and expected delivery date to the user.
             </DialogDescription>
           </DialogHeader>
           
@@ -206,6 +218,18 @@ export default function PharmacyRequestsPage() {
                   Total Order value will include 5% tax + delivery fees automatically.
               </div>
             </div>
+
+            <div className="space-y-3 px-1">
+              <Label htmlFor="expectedDate" className="text-sm font-black text-gray-700 uppercase tracking-tight">Expected Delivery (e.g., Today by 5 PM)</Label>
+              <Input
+                id="expectedDate"
+                type="text"
+                placeholder="Today by 5 PM"
+                value={expectedDate}
+                onChange={(e) => setExpectedDate(e.target.value)}
+                className="rounded-2xl bg-gray-50 border-none font-bold h-14 text-lg px-6 focus-visible:ring-primary/20"
+              />
+            </div>
           </div>
 
           <DialogFooter>
@@ -217,10 +241,10 @@ export default function PharmacyRequestsPage() {
               {isSubmitting ? (
                 <>
                   <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                  Creating Order...
+                  Sending Offer...
                 </>
               ) : (
-                'Accept & Create Order'
+                'Send Offer to User'
               )}
             </Button>
           </DialogFooter>

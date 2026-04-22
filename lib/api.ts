@@ -769,10 +769,24 @@ export class ApiClient {
     return this.request<any[]>('/medicine-requests/user');
   }
 
-  static async acceptMedicineRequest(requestId: string, price: number) {
-    return this.request(`/medicine-requests/${requestId}/accept`, {
+  static async offerMedicineRequest(requestId: string, price: number, expectedDate: string) {
+    return this.request(`/medicine-requests/${requestId}/offer`, {
       method: 'POST',
-      body: JSON.stringify({ price }),
+      body: JSON.stringify({ price, expectedDate }),
+    });
+  }
+
+  static async confirmMedicineRequestOffer(requestId: string) {
+    return this.request(`/medicine-requests/${requestId}/confirm-offer`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  static async rejectMedicineRequestOffer(requestId: string) {
+    return this.request(`/medicine-requests/${requestId}/reject-offer`, {
+      method: 'POST',
+      body: JSON.stringify({}),
     });
   }
 

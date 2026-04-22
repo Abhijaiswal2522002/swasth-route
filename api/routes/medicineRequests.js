@@ -56,7 +56,8 @@ router.get('/user', verifyToken, async (req, res) => {
     try {
         const requests = await MedicineRequest.find({ userId: req.user.id })
             .sort({ createdAt: -1 })
-            .populate('acceptedBy', 'name phone address');
+            .populate('acceptedBy', 'name phone address')
+            .populate('offeredBy', 'name phone address');
             
         res.json(requests);
     } catch (error) {
@@ -103,14 +104,14 @@ router.get('/nearby', verifyPharmacy, async (req, res) => {
   }
 });
 
-// Accept request (Pharmacy)
-router.post('/:id/accept', verifyPharmacy, async (req, res) => {
+// Pharmacy makes an offer
+router.post('/:id/offer', verifyPharmacy, async (req, res) => {
   try {
-    const { price } = req.body;
+    const { price, expectedDate } = req.body;
     const requestId = req.params.id;
 
-    if (!price) {
-      return res.status(400).json({ error: 'Price is required to accept a request' });
+    if (!price || !expectedDate) {
+      return res.status(400).json({ error: 'Price and Expected Date are required to make an offer' });
     }
 
     const medicineRequest = await MedicineRequest.findById(requestId);
@@ -119,10 +120,53 @@ router.post('/:id/accept', verifyPharmacy, async (req, res) => {
     }
 
     if (medicineRequest.status !== 'Pending') {
-      return res.status(400).json({ error: 'Request is already accepted or completed' });
+      return res.status(400).json({ error: 'Request is no longer pending' });
     }
 
-    const pharmacy = await Pharmacy.findById(req.pharmacy.id);
+    medicineRequest.status = 'Offered';
+    medicineRequest.offeredPrice = price;
+    medicineRequest.expectedDate = expectedDate;
+    medicineRequest.offeredBy = req.pharmacy.id;
+
+    await medicineRequest.save();
+
+    // Notify user
+    getIO().emit(`medicine-request-offered-${medicineRequest.userId}`, {
+      requestId: medicineRequest._id,
+      medicineName: medicineRequest.medicineName,
+      offeredPrice: price,
+      expectedDate: expectedDate
+    });
+
+    res.json({
+      message: 'Offer made successfully',
+      request: medicineRequest
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// User confirms the offer
+router.post('/:id/confirm-offer', verifyToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+
+    const medicineRequest = await MedicineRequest.findById(requestId);
+    if (!medicineRequest) {
+      return res.status(404).json({ error: 'Medicine request not found' });
+    }
+
+    if (medicineRequest.status !== 'Offered') {
+      return res.status(400).json({ error: 'Request is not in offered state' });
+    }
+
+    // Ensure it's the right user
+    if (medicineRequest.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to confirm this request' });
+    }
+
+    const pharmacy = await Pharmacy.findById(medicineRequest.offeredBy);
     if (!pharmacy) {
       return res.status(404).json({ error: 'Pharmacy not found' });
     }
@@ -140,7 +184,7 @@ router.post('/:id/accept', verifyPharmacy, async (req, res) => {
       isEmergency: false
     });
 
-    const subtotal = price * medicineRequest.quantity;
+    const subtotal = medicineRequest.offeredPrice * medicineRequest.quantity;
     const tax = Math.round(subtotal * 0.05); // 5% tax
     const total = subtotal + tax + pricing.deliveryFee;
 
@@ -148,11 +192,11 @@ router.post('/:id/accept', verifyPharmacy, async (req, res) => {
     const order = new Order({
       orderId: generateOrderId(),
       userId: medicineRequest.userId,
-      pharmacyId: req.pharmacy.id,
+      pharmacyId: medicineRequest.offeredBy,
       items: [{
         medicineName: medicineRequest.medicineName,
         quantity: medicineRequest.quantity,
-        price: price,
+        price: medicineRequest.offeredPrice,
         subtotal: subtotal
       }],
       deliveryAddress: medicineRequest.deliveryAddress,
@@ -181,8 +225,8 @@ router.post('/:id/accept', verifyPharmacy, async (req, res) => {
 
     // 3. Update Medicine Request
     medicineRequest.status = 'Accepted';
-    medicineRequest.acceptedBy = req.pharmacy.id;
-    medicineRequest.price = price;
+    medicineRequest.acceptedBy = medicineRequest.offeredBy;
+    medicineRequest.price = medicineRequest.offeredPrice;
     medicineRequest.orderId = order._id;
     await medicineRequest.save();
 
@@ -194,10 +238,60 @@ router.post('/:id/accept', verifyPharmacy, async (req, res) => {
         await user.save();
     }
 
+    // Notify pharmacy
+    getIO().emit(`medicine-request-accepted-${medicineRequest.acceptedBy}`, {
+      requestId: medicineRequest._id,
+      orderId: order._id
+    });
+
     res.json({
-      message: 'Request accepted and order created',
+      message: 'Offer accepted and order created',
       request: medicineRequest,
       order
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// User rejects the offer
+router.post('/:id/reject-offer', verifyToken, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+
+    const medicineRequest = await MedicineRequest.findById(requestId);
+    if (!medicineRequest) {
+      return res.status(404).json({ error: 'Medicine request not found' });
+    }
+
+    if (medicineRequest.status !== 'Offered') {
+      return res.status(400).json({ error: 'Request is not in offered state' });
+    }
+
+    // Ensure it's the right user
+    if (medicineRequest.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to reject this request' });
+    }
+
+    const previousOfferedBy = medicineRequest.offeredBy;
+
+    medicineRequest.status = 'Pending';
+    medicineRequest.offeredPrice = undefined;
+    medicineRequest.expectedDate = undefined;
+    medicineRequest.offeredBy = undefined;
+
+    await medicineRequest.save();
+
+    // Notify pharmacy that offer was rejected
+    if (previousOfferedBy) {
+        getIO().emit(`medicine-request-rejected-${previousOfferedBy}`, {
+            requestId: medicineRequest._id
+        });
+    }
+
+    res.json({
+      message: 'Offer rejected, request is pending again',
+      request: medicineRequest
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

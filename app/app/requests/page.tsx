@@ -14,6 +14,7 @@ export default function UserRequestsPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -38,6 +39,40 @@ export default function UserRequestsPage() {
       toast.error('Failed to load your requests');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleConfirmOffer = async (requestId: string) => {
+    setProcessingId(requestId);
+    try {
+      const res = await ApiClient.confirmMedicineRequestOffer(requestId);
+      if (res.data) {
+        toast.success('Offer accepted! Order has been created.');
+        fetchRequests();
+      } else {
+        toast.error(res.error || 'Failed to accept offer');
+      }
+    } catch (error) {
+      toast.error('An error occurred while accepting offer');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleRejectOffer = async (requestId: string) => {
+    setProcessingId(requestId);
+    try {
+      const res = await ApiClient.rejectMedicineRequestOffer(requestId);
+      if (res.data) {
+        toast.success('Offer rejected.');
+        fetchRequests();
+      } else {
+        toast.error(res.error || 'Failed to reject offer');
+      }
+    } catch (error) {
+      toast.error('An error occurred while rejecting offer');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -109,7 +144,37 @@ export default function UserRequestsPage() {
                   </div>
 
                   <div className="flex flex-col gap-4 min-w-[200px]">
-                    {request.status === 'Accepted' && request.acceptedBy ? (
+                    {request.status === 'Offered' && request.offeredBy ? (
+                      <div className="p-5 bg-blue-50 rounded-2xl border border-blue-100 space-y-3 shadow-inner">
+                        <div className="flex items-center gap-2 text-blue-800 font-bold mb-1">
+                          <Store className="w-4 h-4" />
+                          <span className="truncate">{request.offeredBy.name}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-sm font-medium text-blue-900">Offered Price: <span className="font-black text-xl">₹{request.offeredPrice}</span></p>
+                          <p className="text-sm font-medium text-blue-900">Expected: <span className="font-bold">{request.expectedDate}</span></p>
+                        </div>
+                        <div className="flex items-center gap-2 pt-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="flex-1 rounded-xl h-10 font-bold border-blue-200 text-blue-700 hover:bg-blue-100"
+                            onClick={() => handleRejectOffer(request._id)}
+                            disabled={processingId === request._id}
+                          >
+                            Reject
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="flex-1 rounded-xl h-10 font-black bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200"
+                            onClick={() => handleConfirmOffer(request._id)}
+                            disabled={processingId === request._id}
+                          >
+                            {processingId === request._id ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Accept Offer'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : request.status === 'Accepted' && request.acceptedBy ? (
                       <div className="p-5 bg-green-50 rounded-2xl border border-green-100 space-y-3">
                         <div className="flex items-center gap-2 text-green-800 font-bold mb-1">
                           <Store className="w-4 h-4" />
@@ -119,7 +184,7 @@ export default function UserRequestsPage() {
                           <p className="text-lg font-black text-green-900">₹{request.price}</p>
                           <Button 
                             size="sm" 
-                            className="rounded-xl h-9 font-black"
+                            className="rounded-xl h-9 font-black shadow-md shadow-green-200 bg-green-600 hover:bg-green-700"
                             onClick={() => router.push(`/app/orders`)}
                           >
                             View Order

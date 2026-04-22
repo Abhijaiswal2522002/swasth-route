@@ -30,15 +30,25 @@ const MedicineRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Pending', 'Accepted', 'Completed', 'Cancelled'],
+      enum: ['Pending', 'Offered', 'Accepted', 'Completed', 'Cancelled'],
       default: 'Pending',
     },
     acceptedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Pharmacy',
     },
+    offeredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Pharmacy',
+    },
     price: {
       type: Number,
+    },
+    offeredPrice: {
+      type: Number,
+    },
+    expectedDate: {
+      type: String,
     },
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
