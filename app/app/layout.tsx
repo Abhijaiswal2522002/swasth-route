@@ -3,7 +3,7 @@
 import React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Pill, Clock, UserCircle, LogOut, ShoppingCart } from 'lucide-react';
+import { Home, Pill, Clock, UserCircle, LogOut, ShoppingCart, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useCart } from '@/lib/context/CartContext';
 
@@ -24,6 +24,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { name: 'Medicines', href: '/app/medicines', icon: Pill },
     { name: 'Cart', href: '/app/cart', icon: ShoppingCart },
     { name: 'Orders', href: '/app/orders', icon: Clock },
+    { name: 'Requests', href: '/app/requests', icon: ClipboardList },
     { name: 'Profile', href: '/app/profile', icon: UserCircle },
   ];
 

@@ -34,6 +34,11 @@ const MedicineSchema = new mongoose.Schema(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    barcode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
   },
   { timestamps: true }
 );

@@ -33,6 +33,12 @@ export const initSocket = (httpServer, corsOptions) => {
       });
     });
 
+    socket.on('scan-barcode', (data) => {
+      const { roomId, barcode } = data;
+      io.to(roomId).emit('barcode-scanned', { barcode });
+      console.log(`Barcode ${barcode} scanned for room ${roomId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log('Client disconnected');
     });

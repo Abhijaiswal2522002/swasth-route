@@ -3,7 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Package, TrendingUp, Settings, LogOut, Building2, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Package, TrendingUp, Settings, LogOut, Building2, MessageSquare, Receipt, History } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
@@ -19,6 +19,8 @@ export default function PharmacyLayout({ children }: { children: React.ReactNode
 
   const navItems = [
     { name: 'Dashboard', href: '/pharmacy', icon: LayoutDashboard },
+    { name: 'Billing', href: '/pharmacy/billing', icon: Receipt },
+    { name: 'Invoices', href: '/pharmacy/invoices', icon: History },
     { name: 'Medicines', href: '/pharmacy/medicines', icon: Package },
     { name: 'User Requests', href: '/pharmacy/requests', icon: MessageSquare },
     { name: 'Orders', href: '/pharmacy/orders', icon: Package },
