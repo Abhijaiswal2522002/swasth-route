@@ -21,8 +21,20 @@ export default function MobileScannerPage() {
       return;
     }
 
-    const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
-    
+    const getSocketUrl = () => {
+      let url = process.env.NEXT_PUBLIC_API_URL;
+
+      if (!url || (url.includes('localhost') && window.location.hostname !== 'localhost')) {
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        url = `${protocol}//${hostname}:3001`;
+      }
+
+      return url.replace(/\/api$/, '').replace(/\/$/, '');
+    };
+
+    const newSocket = io(getSocketUrl());
+
     newSocket.on('connect', () => {
       setStatus('connected');
       newSocket.emit('join-room', roomId);
@@ -47,7 +59,7 @@ export default function MobileScannerPage() {
       if (typeof window !== 'undefined' && window.navigator.vibrate) {
         window.navigator.vibrate(100);
       }
-      
+
       // Clear last scanned after 2 seconds
       setTimeout(() => setLastScanned(null), 2000);
     }

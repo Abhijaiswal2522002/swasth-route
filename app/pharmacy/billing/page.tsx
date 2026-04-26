@@ -41,18 +41,44 @@ export default function BillingPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
   const [lastKeyTime, setLastKeyTime] = useState(0);
+  const [customIp, setCustomIp] = useState('');
 
   // Mobile Scanner Setup
   const roomId = user?._id ? `billing-${user._id}` : null;
-  const mobileScannerUrl = typeof window !== 'undefined' && roomId 
-    ? `${window.location.origin}/pharmacy/billing/scanner?roomId=${roomId}`
+
+  const getBaseUrl = () => {
+    if (typeof window === 'undefined') return '';
+    if (customIp) {
+      const port = window.location.port ? `:${window.location.port}` : '';
+      return `${window.location.protocol}//${customIp}${port}`;
+    }
+    return window.location.origin;
+  };
+
+  const mobileScannerUrl = roomId
+    ? `${getBaseUrl()}/pharmacy/billing/scanner?roomId=${roomId}`
     : '';
 
   useEffect(() => {
     if (!roomId) return;
 
-    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001');
-    
+    const getSocketUrl = () => {
+      let url = process.env.NEXT_PUBLIC_API_URL;
+
+      // If no env var, or if env var is localhost but we are being accessed via IP
+      // then we should use the current hostname
+      if (!url || (url.includes('localhost') && window.location.hostname !== 'localhost')) {
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        url = `${protocol}//${hostname}:3001`;
+      }
+
+      // Strip /api from the end for socket.io
+      return url.replace(/\/api$/, '').replace(/\/$/, '');
+    };
+
+    const socket = io(getSocketUrl());
+
     socket.on('connect', () => {
       socket.emit('join-room', roomId);
     });
@@ -72,7 +98,7 @@ export default function BillingPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Barcode scanners type very fast. We check the time between keypresses.
       const now = Date.now();
-      
+
       // If the gap is small (less than 50ms), it's likely a scanner
       const isFast = now - lastKeyTime < 50;
       setLastKeyTime(now);
@@ -169,10 +195,11 @@ export default function BillingPage() {
   const handleBarcodeScan = async (barcode: string) => {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/invoices/barcode/${barcode}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${backendUrl}/api/invoices/barcode/${barcode}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (response.ok) {
         const { medicine, inventory } = await response.json();
         addToCart(medicine, inventory?.price);
@@ -199,7 +226,8 @@ export default function BillingPage() {
     setIsProcessing(true);
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/invoices', {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const response = await fetch(`${backendUrl}/api/invoices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,57 +277,77 @@ export default function BillingPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 border-primary/50 text-primary">
-                <Smartphone className="w-4 h-4" />
-                Mobile Sync
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Use Mobile as Scanner</DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col items-center space-y-4 p-6">
-                <div className="bg-white p-4 rounded-xl shadow-inner border">
-                  <QRCodeCanvas value={mobileScannerUrl} size={200} />
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-gray-500">
-                    Scan with your <b>Phone Camera</b> (not GPay) or open the link below on your phone.
-                  </p>
-                  <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-md">
-                    <div className="flex-1 text-xs font-mono truncate text-gray-600">
-                      {mobileScannerUrl}
+          <div className="hidden md:block">
+            <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2 border-primary/50 text-primary">
+                  <Smartphone className="w-4 h-4" />
+                  Mobile Sync
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Use Mobile as Scanner</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col items-center space-y-4 p-6">
+                  <div className="bg-white p-4 rounded-xl shadow-inner border">
+                    <QRCodeCanvas value={mobileScannerUrl} size={200} />
+                  </div>
+                  <div className="w-full p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3">
+                    <p className="text-xs font-semibold text-blue-800">
+                      Step 1: Setup Network
+                    </p>
+                    <p className="text-[11px] text-blue-700 leading-tight">
+                      Ensure your phone and laptop are on the <b>same Wi-Fi</b>.
+                      {window.location.hostname === 'localhost' && (
+                        <span> Since you're on "localhost", enter your laptop's IP address below:</span>
+                      )}
+                    </p>
+
+                    {window.location.hostname === 'localhost' && (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="e.g. 192.168.1.5"
+                          size={1}
+                          className="h-8 text-xs bg-white"
+                          value={customIp}
+                          onChange={(e) => setCustomIp(e.target.value)}
+                        />
+                        <Button size="sm" variant="secondary" className="h-8 text-xs shrink-0" onClick={() => {
+                          // Helpful tip: suggest how to find IP
+                          toast.info('Run "ipconfig" in CMD to find your IPv4 address');
+                        }}>
+                          How?
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="pt-2 border-t border-blue-100">
+                      <p className="text-xs font-semibold text-blue-800 mb-1">
+                        Step 2: Scan QR
+                      </p>
+                      <p className="text-[11px] text-blue-700 leading-tight">
+                        Scan with your <b>Phone Camera</b>. Use Chrome/Safari for best results.
+                      </p>
                     </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-8 px-2"
-                      onClick={() => {
-                        navigator.clipboard.writeText(mobileScannerUrl);
-                        toast.success('Link copied!');
-                      }}
-                    >
-                      Copy
-                    </Button>
+                  </div>
+
+                  <div className="w-full p-3 bg-yellow-50 rounded-lg border border-yellow-100">
+                    <p className="text-[11px] text-yellow-800 leading-tight">
+                      <b>Note:</b> Camera requires HTTPS or localhost. Most mobile browsers will block the camera on a plain IP (192.168.x.x) unless you've configured a secure tunnel like <b>ngrok</b>.
+                    </p>
                   </div>
                 </div>
-                
-                <div className="w-full p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                  <p className="text-[11px] text-yellow-800 leading-tight">
-                    <b>Note:</b> Both devices must be on the same Wi-Fi. If you are on "localhost", use your laptop's IP address (e.g., 192.168.x.x) so your phone can connect.
-                  </p>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
 
           <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
                 <Camera className="w-4 h-4" />
-                Laptop Camera
+                <span className="md:hidden">Scan Barcode</span>
+                <span className="hidden md:inline">Laptop Camera</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -469,8 +517,8 @@ export default function BillingPage() {
                 <span>Total Amount</span>
                 <span className="text-primary">₹{totalAmount.toFixed(2)}</span>
               </div>
-              <Button 
-                className="w-full h-12 text-lg font-semibold mt-4" 
+              <Button
+                className="w-full h-12 text-lg font-semibold mt-4"
                 onClick={generateInvoice}
                 disabled={isProcessing || cart.length === 0}
               >
