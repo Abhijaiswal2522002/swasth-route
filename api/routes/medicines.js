@@ -48,7 +48,7 @@ router.get('/search', async (req, res) => {
 // For now, let's allow pharmacies too but we could restrict this later
 router.post('/', async (req, res) => {
   try {
-    const { name, manufacturer, category, composition, description, image } = req.body;
+    const { name, manufacturer, category, composition, description, image, barcode } = req.body;
     
     // Check if medicine already exists
     const existingMedicine = await Medicine.findOne({ name: new RegExp('^' + name + '$', 'i') });
@@ -63,6 +63,7 @@ router.post('/', async (req, res) => {
       composition,
       description,
       image,
+      barcode,
     });
 
     await medicine.save();

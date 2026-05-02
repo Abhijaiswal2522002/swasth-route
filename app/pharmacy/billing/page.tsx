@@ -62,55 +62,6 @@ export default function BillingPage() {
     fetchNetworkInfo();
   }, []);
 
-  // Mobile Scanner Setup
-  const roomId = user?._id ? `billing-${user._id}` : null;
-
-  const getBaseUrl = () => {
-    if (typeof window === 'undefined') return '';
-    if (customIp) {
-      const port = window.location.port ? `:${window.location.port}` : '';
-      return `${window.location.protocol}//${customIp}${port}`;
-    }
-    return window.location.origin;
-  };
-
-  const mobileScannerUrl = roomId
-    ? `${getBaseUrl()}/pharmacy/billing/scanner?roomId=${roomId}`
-    : '';
-
-  useEffect(() => {
-    if (!roomId) return;
-
-    const getSocketUrl = () => {
-      let url = process.env.NEXT_PUBLIC_API_URL;
-
-      // If no env var, or if env var is localhost but we are being accessed via IP
-      // then we should use the current hostname
-      if (!url || (url.includes('localhost') && window.location.hostname !== 'localhost')) {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        url = `${protocol}//${hostname}:3001`;
-      }
-
-      // Strip /api from the end for socket.io
-      return url.replace(/\/api$/, '').replace(/\/$/, '');
-    };
-
-    const socket = io(getSocketUrl());
-
-    socket.on('connect', () => {
-      socket.emit('join-room', roomId);
-    });
-
-    socket.on('barcode-scanned', ({ barcode }) => {
-      handleBarcodeScan(barcode);
-      toast.success('Mobile scan received!');
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [roomId]);
 
   // Global Hardware Scanner Listener
   useEffect(() => {
@@ -232,6 +183,66 @@ export default function BillingPage() {
     }
   }, [cart]); // Added cart as dependency since addToCart depends on it
 
+  // Mobile Scanner Setup
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const roomId = user?.id ? `billing-${user.id}` : null;
+
+  const getBaseUrl = () => {
+    if (typeof window === 'undefined') return '';
+    if (customIp) {
+      const port = window.location.port ? `:${window.location.port}` : '';
+      return `${window.location.protocol}//${customIp}${port}`;
+    }
+    return window.location.origin;
+  };
+
+  const mobileScannerUrl = roomId
+    ? `${getBaseUrl()}/pharmacy/billing/scanner?roomId=${roomId}`
+    : '';
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const getSocketUrl = () => {
+      // If we are on localhost, talk directly to the backend on 3001
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:3001';
+      }
+      // Otherwise use the current origin (for tunnels/production)
+      return typeof window !== 'undefined' ? window.location.origin : '';
+    };
+
+    const socket = io(getSocketUrl(), {
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 10,
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Billing Socket Connected');
+      setIsSocketConnected(true);
+      socket.emit('join-room', roomId);
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('❌ Socket Connection Error:', err.message);
+      setIsSocketConnected(false);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('⚠️ Socket Disconnected');
+      setIsSocketConnected(false);
+    });
+
+    socket.on('barcode-scanned', ({ barcode }) => {
+      handleBarcodeScan(barcode);
+      toast.success('Mobile scan received!');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [roomId, handleBarcodeScan]);
+
   const subTotal = cart.reduce((sum, item) => sum + item.total, 0);
   const tax = subTotal * 0.12; // Assuming 12% GST
   const totalAmount = subTotal + tax;
@@ -298,12 +309,18 @@ export default function BillingPage() {
         <div className="flex gap-2">
           <div className="hidden md:block">
             <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 border-primary/50 text-primary">
-                  <Smartphone className="w-4 h-4" />
-                  Mobile Sync
-                </Button>
-              </DialogTrigger>
+                <div className="flex items-center gap-3">
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
+                      <Smartphone className="w-4 h-4" />
+                      Mobile Sync
+                    </Button>
+                  </DialogTrigger>
+                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                    {isSocketConnected ? 'Ready' : 'Offline'}
+                  </div>
+                </div>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Use Mobile as Scanner</DialogTitle>

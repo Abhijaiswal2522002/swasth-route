@@ -16,25 +16,24 @@ export default function MobileScannerPage() {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [lastScanned, setLastScanned] = useState<string | null>(null);
 
+  const getSocketUrl = () => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return '';
+  };
+
   useEffect(() => {
     if (!roomId) {
       setStatus('error');
       return;
     }
 
-    const getSocketUrl = () => {
-      let url = process.env.NEXT_PUBLIC_API_URL;
-
-      if (!url || (url.includes('localhost') && window.location.hostname !== 'localhost')) {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        url = `${protocol}//${hostname}:3001`;
-      }
-
-      return url.replace(/\/api$/, '').replace(/\/$/, '');
-    };
-
-    const newSocket = io(getSocketUrl());
+    const newSocket = io(getSocketUrl(), {
+      transports: ['polling', 'websocket'],
+      path: '/socket.io/',
+      reconnectionAttempts: 5
+    });
 
     newSocket.on('connect', () => {
       setStatus('connected');
@@ -90,14 +89,24 @@ export default function MobileScannerPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 space-y-6">
-      <div className="w-full max-w-md flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
-        <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
-          <span className="font-medium text-gray-700">
-            {status === 'connected' ? 'Linked to Laptop' : 'Connecting...'}
-          </span>
+      <div className="w-full max-w-md bg-white p-4 rounded-xl shadow-sm border space-y-2">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : status === 'error' ? 'bg-red-500' : 'bg-yellow-500'}`} />
+            <span className="font-medium text-gray-700">
+              {status === 'connected' ? 'Linked to Laptop' : status === 'error' ? 'Connection Failed' : 'Connecting...'}
+            </span>
+          </div>
+          <Smartphone className="w-5 h-5 text-gray-400" />
         </div>
-        <Smartphone className="w-5 h-5 text-gray-400" />
+        
+        {status !== 'connected' && (
+          <div className="text-[10px] text-gray-400 font-mono bg-gray-50 p-2 rounded border border-dashed">
+            Target: {getSocketUrl() || 'Unknown'}
+            <br />
+            ID: {roomId || 'None'}
+          </div>
+        )}
       </div>
 
       <Card className="w-full max-w-md overflow-hidden">

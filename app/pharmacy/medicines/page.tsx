@@ -46,7 +46,8 @@ export default function PharmacyMedicinesPage() {
     manufacturer: '',
     category: 'Tablet',
     composition: '',
-    description: ''
+    description: '',
+    barcode: ''
   });
 
   useEffect(() => {
@@ -159,7 +160,8 @@ export default function PharmacyMedicinesPage() {
       manufacturer: '',
       category: 'Tablet',
       composition: '',
-      description: ''
+      description: '',
+      barcode: ''
     });
   };
 
@@ -358,6 +360,15 @@ export default function PharmacyMedicinesPage() {
                     className="rounded-lg font-bold"
                     placeholder="e.g. Paracetamol 500mg"
                   />
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-gray-400">Barcode (Optional)</Label>
+                    <Input
+                      value={newMedicine.barcode}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, barcode: e.target.value })}
+                      className="rounded-lg font-bold border-primary/20"
+                      placeholder="Scan or type barcode"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
