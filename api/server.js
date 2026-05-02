@@ -39,6 +39,11 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
+    // In development, allow all origins to facilitate mobile testing on local network
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.replace(/\/$/, '');
     const isVercel = normalizedOrigin.endsWith('.vercel.app');
@@ -76,6 +81,21 @@ app.use('/api/medicine-requests', medicineRequestRoutes);
 app.use('/api/rider', riderRoutes);
 app.use('/api/invoices', invoiceRoutes);
 
+import os from 'os';
+
+// Network Info Helper
+const getLocalIp = () => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+};
+
 // Health check
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
@@ -83,6 +103,13 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date(),
     database: dbStatus
+  });
+});
+
+// Network info check
+app.get('/api/network-info', (req, res) => {
+  res.json({
+    localIp: getLocalIp()
   });
 });
 

@@ -43,6 +43,25 @@ export default function BillingPage() {
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const [customIp, setCustomIp] = useState('');
 
+  // Auto-detect IP on mount
+  useEffect(() => {
+    const fetchNetworkInfo = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${backendUrl}/network-info`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.localIp && data.localIp !== 'localhost') {
+            setCustomIp(data.localIp);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch network info:', err);
+      }
+    };
+    fetchNetworkInfo();
+  }, []);
+
   // Mobile Scanner Setup
   const roomId = user?._id ? `billing-${user._id}` : null;
 
@@ -192,11 +211,11 @@ export default function BillingPage() {
     setCart(cart.filter((item) => item.medicineId !== medicineId));
   };
 
-  const handleBarcodeScan = async (barcode: string) => {
+  const handleBarcodeScan = React.useCallback(async (barcode: string) => {
     try {
       const token = localStorage.getItem('authToken');
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${backendUrl}/api/invoices/barcode/${barcode}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+      const response = await fetch(`${backendUrl}/invoices/barcode/${barcode}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -211,7 +230,7 @@ export default function BillingPage() {
     } catch (error) {
       toast.error('Error scanning barcode');
     }
-  };
+  }, [cart]); // Added cart as dependency since addToCart depends on it
 
   const subTotal = cart.reduce((sum, item) => sum + item.total, 0);
   const tax = subTotal * 0.12; // Assuming 12% GST
@@ -293,48 +312,53 @@ export default function BillingPage() {
                   <div className="bg-white p-4 rounded-xl shadow-inner border">
                     <QRCodeCanvas value={mobileScannerUrl} size={200} />
                   </div>
-                  <div className="w-full p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3">
-                    <p className="text-xs font-semibold text-blue-800">
-                      Step 1: Setup Network
-                    </p>
-                    <p className="text-[11px] text-blue-700 leading-tight">
-                      Ensure your phone and laptop are on the <b>same Wi-Fi</b>.
+                  <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
+                    <div className="text-xs font-semibold text-indigo-800 flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</div>
+                      Network Setup
+                    </div>
+                    <p className="text-[11px] text-indigo-700 leading-tight">
+                      Connect your phone to the <b>same Wi-Fi</b> as this laptop.
                       {window.location.hostname === 'localhost' && (
-                        <span> Since you're on "localhost", enter your laptop's IP address below:</span>
+                        <span> Enter your laptop's Local IP below to sync:</span>
                       )}
                     </p>
 
                     {window.location.hostname === 'localhost' && (
                       <div className="flex gap-2">
-                        <Input
-                          placeholder="e.g. 192.168.1.5"
-                          size={1}
-                          className="h-8 text-xs bg-white"
-                          value={customIp}
-                          onChange={(e) => setCustomIp(e.target.value)}
-                        />
-                        <Button size="sm" variant="secondary" className="h-8 text-xs shrink-0" onClick={() => {
-                          // Helpful tip: suggest how to find IP
-                          toast.info('Run "ipconfig" in CMD to find your IPv4 address');
+                        <div className="relative flex-1">
+                          <Smartphone className="absolute left-2 top-2 w-3 h-3 text-indigo-400" />
+                          <Input
+                            placeholder="e.g. 192.168.1.5"
+                            className="h-8 text-xs bg-white pl-7 border-indigo-200"
+                            value={customIp}
+                            onChange={(e) => setCustomIp(e.target.value)}
+                          />
+                        </div>
+                        <Button size="sm" variant="secondary" className="h-8 text-xs shrink-0 bg-indigo-200 hover:bg-indigo-300 text-indigo-800" onClick={() => {
+                          toast.info('Open CMD and type "ipconfig" to find your IPv4 Address');
                         }}>
-                          How?
+                          Find IP
                         </Button>
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-blue-100">
-                      <p className="text-xs font-semibold text-blue-800 mb-1">
-                        Step 2: Scan QR
-                      </p>
-                      <p className="text-[11px] text-blue-700 leading-tight">
-                        Scan with your <b>Phone Camera</b>. Use Chrome/Safari for best results.
+                    <div className="pt-2 border-t border-indigo-100">
+                      <div className="text-xs font-semibold text-indigo-800 mb-1 flex items-center gap-2">
+                        <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</div>
+                        Open Scanner
+                      </div>
+                      <p className="text-[11px] text-indigo-700 leading-tight">
+                        Scan the QR code with your <b>Phone Camera</b>.
                       </p>
                     </div>
                   </div>
 
-                  <div className="w-full p-3 bg-yellow-50 rounded-lg border border-yellow-100">
-                    <p className="text-[11px] text-yellow-800 leading-tight">
-                      <b>Note:</b> Camera requires HTTPS or localhost. Most mobile browsers will block the camera on a plain IP (192.168.x.x) unless you've configured a secure tunnel like <b>ngrok</b>.
+                  <div className="w-full p-3 bg-amber-50 rounded-lg border border-amber-100">
+                    <p className="text-[10px] text-amber-800 leading-tight">
+                      <span className="font-bold">⚠️ Security Tip:</span> Mobile browsers block the camera on plain IP addresses (192.168.x.x) because they aren't "Secure Contexts".
+                      <br /><br />
+                      <b>To fix this:</b> Use <b>ngrok</b> or a similar tool to get an HTTPS link for testing. We've added a <b>Manual Entry fallback</b> in the mobile app if the camera won't start.
                     </p>
                   </div>
                 </div>

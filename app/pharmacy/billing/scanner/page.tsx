@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 import BarcodeScanner from '@/components/pharmacy/BarcodeScanner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export default function MobileScannerPage() {
   const searchParams = useSearchParams();
@@ -51,10 +52,16 @@ export default function MobileScannerPage() {
     };
   }, [roomId]);
 
-  const handleScan = (barcode: string) => {
-    if (socket && status === 'connected' && roomId) {
+  const handleScan = useCallback((barcode: string) => {
+    if (status !== 'connected') {
+      toast.error('Not connected to laptop. Please wait...');
+      return;
+    }
+
+    if (socket && roomId) {
       socket.emit('scan-barcode', { roomId, barcode });
       setLastScanned(barcode);
+
       // Vibration feedback for mobile
       if (typeof window !== 'undefined' && window.navigator.vibrate) {
         window.navigator.vibrate(100);
@@ -63,7 +70,7 @@ export default function MobileScannerPage() {
       // Clear last scanned after 2 seconds
       setTimeout(() => setLastScanned(null), 2000);
     }
-  };
+  }, [status, socket, roomId]);
 
   if (status === 'error' || !roomId) {
     return (
