@@ -207,28 +207,28 @@ export default function BillingPage() {
     return window.location.origin;
   };
 
+  const getSocketUrl = () => {
+    // Priority 1: Environment variable (stripping /api if present)
+    const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envApiUrl && !envApiUrl.includes('localhost') && !envApiUrl.includes('127.0.0.1')) {
+      return envApiUrl.replace(/\/api$/, '');
+    }
+
+    // Priority 2: If we are on localhost, talk directly to the backend on 3001
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return 'http://localhost:3001';
+    }
+    
+    // Priority 3: Use the current origin (for same-origin tunnels/production)
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  };
+
   const mobileScannerUrl = roomId
     ? `${getBaseUrl()}/pharmacy/billing/scanner?roomId=${roomId}&socketUrl=${encodeURIComponent(getSocketUrl())}`
     : '';
 
   useEffect(() => {
     if (!roomId) return;
-
-    const getSocketUrl = () => {
-      // Priority 1: Environment variable (stripping /api if present)
-      const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (envApiUrl && !envApiUrl.includes('localhost') && !envApiUrl.includes('127.0.0.1')) {
-        return envApiUrl.replace(/\/api$/, '');
-      }
-
-      // Priority 2: If we are on localhost, talk directly to the backend on 3001
-      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        return 'http://localhost:3001';
-      }
-      
-      // Priority 3: Use the current origin (for same-origin tunnels/production)
-      return typeof window !== 'undefined' ? window.location.origin : '';
-    };
 
     const socket = io(getSocketUrl(), {
       transports: ['polling', 'websocket'],
