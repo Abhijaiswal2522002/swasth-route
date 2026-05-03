@@ -18,7 +18,16 @@ export default function MobileScannerPage() {
 
   const getSocketUrl = () => {
     if (typeof window !== 'undefined') {
-      return window.location.origin;
+      // In production, the socket usually runs on the same origin as the frontend
+      // or at a specific API domain. 
+      const origin = window.location.origin;
+      
+      // Handle the case where the frontend and backend are on different ports locally
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3001';
+      }
+      
+      return origin;
     }
     return '';
   };

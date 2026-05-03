@@ -43,8 +43,12 @@ export default function BillingPage() {
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const [customIp, setCustomIp] = useState('');
 
-  // Auto-detect IP on mount
+  // Auto-detect IP on mount (only on localhost)
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return;
+    }
+
     const fetchNetworkInfo = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
@@ -189,6 +193,13 @@ export default function BillingPage() {
 
   const getBaseUrl = () => {
     if (typeof window === 'undefined') return '';
+    
+    // In production (non-localhost), ALWAYS use the current origin
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return window.location.origin;
+    }
+
+    // In development, allow Local IP override for phone testing on same Wi-Fi
     if (customIp) {
       const port = window.location.port ? `:${window.location.port}` : '';
       return `${window.location.protocol}//${customIp}${port}`;
@@ -368,14 +379,18 @@ export default function BillingPage() {
                       <p className="text-[11px] text-indigo-700 leading-tight">
                         Scan the QR code with your <b>Phone Camera</b>.
                       </p>
+                      <div className="mt-2 p-1.5 bg-white/50 rounded border border-indigo-100 text-[10px] font-mono text-indigo-600 break-all">
+                        {mobileScannerUrl}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="w-full p-3 bg-amber-50 rounded-lg border border-amber-100">
-                    <p className="text-[10px] text-amber-800 leading-tight">
-                      <span className="font-bold">⚠️ Security Tip:</span> Mobile browsers block the camera on plain IP addresses (192.168.x.x) because they aren't "Secure Contexts".
-                      <br /><br />
-                      <b>To fix this:</b> Use <b>ngrok</b> or a similar tool to get an HTTPS link for testing. We've added a <b>Manual Entry fallback</b> in the mobile app if the camera won't start.
+                  <div className={`w-full p-3 rounded-lg border ${window.location.protocol === 'https:' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                    <p className={`text-[10px] leading-tight ${window.location.protocol === 'https:' ? 'text-green-800' : 'text-amber-800'}`}>
+                      <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
+                      {window.location.protocol === 'https:' 
+                        ? ' You are on a secure (HTTPS) connection. The mobile camera will work perfectly.'
+                        : ' Mobile browsers block cameras on plain HTTP links. Use a tunnel (ngrok/Cloudflare) or VS Code Port Forwarding to get an HTTPS link for testing.'}
                     </p>
                   </div>
                 </div>
