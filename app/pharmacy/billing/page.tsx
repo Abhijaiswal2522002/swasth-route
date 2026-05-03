@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import BarcodeScanner from '@/components/pharmacy/BarcodeScanner';
 import { toast } from 'sonner';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -42,6 +42,17 @@ export default function BillingPage() {
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const [customIp, setCustomIp] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Device detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Auto-detect IP on mount (only on localhost)
   useEffect(() => {
@@ -325,35 +336,57 @@ export default function BillingPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <div className="hidden md:block">
-            <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
-                <div className="flex items-center gap-3">
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
-                      <Smartphone className="w-4 h-4" />
-                      Mobile Sync
-                    </Button>
-                  </DialogTrigger>
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                    {isSocketConnected ? 'Ready' : 'Offline'}
-                  </div>
+          {isMobile ? (
+            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 rounded-xl bg-primary text-white shadow-lg">
+                  <Camera className="w-5 h-5" />
+                  Scan Barcode
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl border-0">
+                <div className="p-4 bg-gray-900 text-white flex justify-between items-center">
+                  <h3 className="font-bold">Scan Medicine</h3>
+                  <Button variant="ghost" size="icon" onClick={() => setIsScannerOpen(false)} className="text-white hover:bg-white/10">
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
+                <div className="bg-black">
+                  <BarcodeScanner onScanSuccess={(barcode) => {
+                    handleBarcodeScan(barcode);
+                    setIsScannerOpen(false);
+                  }} />
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
+              <div className="flex items-center gap-3">
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
+                    <Smartphone className="w-4 h-4" />
+                    Mobile Sync
+                  </Button>
+                </DialogTrigger>
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                  {isSocketConnected ? 'Ready' : 'Offline'}
+                </div>
+              </div>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Use Mobile as Scanner</DialogTitle>
+                  <DialogDescription>
+                    Link your phone to scan medicines directly into this bill.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center space-y-4 p-6">
                   <div className="bg-white p-4 rounded-xl shadow-inner border">
                     <QRCodeCanvas value={mobileScannerUrl} size={200} />
                   </div>
+                  
                   <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
-                    <div className="text-xs font-semibold text-indigo-800 flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</div>
-                      Network Setup
-                    </div>
                     <p className="text-[11px] text-indigo-700 leading-tight">
-                      Connect your phone to the <b>same Wi-Fi</b> as this laptop.
                       {window.location.hostname === 'localhost' && (
                         <span> Enter your laptop's Local IP below to sync:</span>
                       )}
@@ -397,14 +430,13 @@ export default function BillingPage() {
                       <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
                       {window.location.protocol === 'https:' 
                         ? ' You are on a secure (HTTPS) connection. The mobile camera will work perfectly.'
-                        : ' Mobile browsers block cameras on plain HTTP links. Use a tunnel (ngrok/Cloudflare) or VS Code Port Forwarding to get an HTTPS link for testing.'}
+                        : ' Mobile browsers block cameras on plain HTTP links. Use a tunnel (ngrok or Cloudflare) or VS Code Port Forwarding to get an HTTPS link for testing.'}
                     </p>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
-
+          )}
         </div>
       </div>
 

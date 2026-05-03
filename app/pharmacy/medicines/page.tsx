@@ -57,6 +57,17 @@ export default function PharmacyMedicinesPage() {
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [customIp, setCustomIp] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Device detection
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Auto-detect IP on mount (only on localhost)
   useEffect(() => {
@@ -301,52 +312,74 @@ export default function PharmacyMedicinesPage() {
         </div>
 
         <div className="flex gap-3">
-          <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
-            <div className="flex items-center gap-3">
+          {isMobile ? (
+            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
-                  <Smartphone className="w-4 h-4" />
-                  Mobile Sync
+                <Button className="gap-2 rounded-xl bg-primary text-white shadow-lg h-14 px-8 font-black uppercase tracking-widest text-xs">
+                  <Camera className="w-5 h-5" />
+                  Scan Barcode
                 </Button>
               </DialogTrigger>
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                {isSocketConnected ? 'Ready' : 'Offline'}
-              </div>
-            </div>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Use Mobile as Scanner</DialogTitle>
-                <DialogDescription>
-                  Link your phone to scan medicine boxes directly into your inventory.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col items-center space-y-4 p-6">
-                <div className="bg-white p-4 rounded-xl shadow-inner border">
-                  <QRCodeCanvas value={mobileScannerUrl} size={200} />
+              <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-3xl border-0">
+                <div className="p-4 bg-gray-900 text-white flex justify-between items-center">
+                  <h3 className="font-bold uppercase tracking-widest text-[10px]">Stock Scanner</h3>
+                  <Button variant="ghost" size="icon" onClick={() => setIsScannerOpen(false)} className="text-white hover:bg-white/10">
+                    <X className="w-5 h-5" />
+                  </Button>
                 </div>
-                
-                <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
-                  <p className="text-[11px] text-indigo-700 leading-tight">
-                    1. Scan this QR code with your <b>Phone Camera</b>.<br />
-                    2. Scanned items will appear in the <b>Add Medicine</b> dialog automatically.
-                  </p>
-                  <div className="p-1.5 bg-white/50 rounded border border-indigo-100 text-[10px] font-mono text-indigo-600 break-all">
-                    {mobileScannerUrl}
+                <div className="bg-black">
+                  <BarcodeScanner onScanSuccess={handleScannerResult} />
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
+              <div className="flex items-center gap-3">
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
+                    <Smartphone className="w-4 h-4" />
+                    Mobile Sync
+                  </Button>
+                </DialogTrigger>
+                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                  {isSocketConnected ? 'Ready' : 'Offline'}
+                </div>
+              </div>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Use Mobile as Scanner</DialogTitle>
+                  <DialogDescription>
+                    Link your phone to scan medicine boxes directly into your inventory.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center space-y-4 p-6">
+                  <div className="bg-white p-4 rounded-xl shadow-inner border">
+                    <QRCodeCanvas value={mobileScannerUrl} size={200} />
+                  </div>
+                  
+                  <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
+                    <p className="text-[11px] text-indigo-700 leading-tight">
+                      1. Scan this QR code with your <b>Phone Camera</b>.<br />
+                      2. Scanned items will appear in the <b>Add Medicine</b> dialog automatically.
+                    </p>
+                    <div className="p-1.5 bg-white/50 rounded border border-indigo-100 text-[10px] font-mono text-indigo-600 break-all">
+                      {mobileScannerUrl}
+                    </div>
+                  </div>
+
+                  <div className={`w-full p-3 rounded-lg border ${window.location.protocol === 'https:' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                    <p className={`text-[10px] leading-tight ${window.location.protocol === 'https:' ? 'text-green-800' : 'text-amber-800'}`}>
+                      <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
+                      {window.location.protocol === 'https:' 
+                        ? ' HTTPS detected. Mobile camera will work.'
+                        : ' Mobile camera requires HTTPS or Tunnel.'}
+                    </p>
                   </div>
                 </div>
-
-                <div className={`w-full p-3 rounded-lg border ${window.location.protocol === 'https:' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
-                  <p className={`text-[10px] leading-tight ${window.location.protocol === 'https:' ? 'text-green-800' : 'text-amber-800'}`}>
-                    <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
-                    {window.location.protocol === 'https:' 
-                      ? ' HTTPS detected. Mobile camera will work.'
-                      : ' Mobile camera requires HTTPS/Tunnel.'}
-                  </p>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
 
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
