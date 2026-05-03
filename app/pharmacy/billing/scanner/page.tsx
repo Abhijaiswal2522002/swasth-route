@@ -12,22 +12,23 @@ import { toast } from 'sonner';
 export default function MobileScannerPage() {
   const searchParams = useSearchParams();
   const roomId = searchParams.get('roomId');
+  const socketUrlParam = searchParams.get('socketUrl');
   const [socket, setSocket] = useState<Socket | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [lastScanned, setLastScanned] = useState<string | null>(null);
 
   const getSocketUrl = () => {
+    // Priority 1: URL Parameter from QR code
+    if (socketUrlParam) return socketUrlParam;
+
     if (typeof window !== 'undefined') {
-      // In production, the socket usually runs on the same origin as the frontend
-      // or at a specific API domain. 
-      const origin = window.location.origin;
-      
-      // Handle the case where the frontend and backend are on different ports locally
+      // Priority 2: Localhost check
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         return 'http://localhost:3001';
       }
       
-      return origin;
+      // Priority 3: Fallback to same origin
+      return window.location.origin;
     }
     return '';
   };
