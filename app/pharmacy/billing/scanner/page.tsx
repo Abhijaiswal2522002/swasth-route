@@ -98,43 +98,36 @@ export default function MobileScannerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 space-y-6">
-      <div className="w-full max-w-md bg-white p-4 rounded-xl shadow-sm border space-y-2">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : status === 'error' ? 'bg-red-500' : 'bg-yellow-500'}`} />
-            <span className="font-medium text-gray-700">
-              {status === 'connected' ? 'Linked to Laptop' : status === 'error' ? 'Connection Failed' : 'Connecting...'}
-            </span>
-          </div>
-          <Smartphone className="w-5 h-5 text-gray-400" />
+    <div className="min-h-screen bg-black flex flex-col items-center">
+      {/* Slim Status Bar */}
+      <div className="w-full bg-white/10 backdrop-blur-md p-3 flex justify-between items-center text-white z-20">
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-xs font-bold uppercase tracking-widest">
+            {status === 'connected' ? 'Sync Active' : 'Connecting...'}
+          </span>
         </div>
-        
-        {status !== 'connected' && (
-          <div className="text-[10px] text-gray-400 font-mono bg-gray-50 p-2 rounded border border-dashed">
-            Target: {getSocketUrl() || 'Unknown'}
-            <br />
-            ID: {roomId || 'None'}
-          </div>
-        )}
+        <Smartphone className="w-4 h-4 opacity-50" />
       </div>
 
-      <Card className="w-full max-w-md overflow-hidden">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Mobile Barcode Scanner</CardTitle>
-          <CardDescription>Scanning results will appear on your laptop in real-time.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <BarcodeScanner onScanSuccess={handleScan} />
-        </CardContent>
-      </Card>
+      {/* Main Scanner Area */}
+      <div className="flex-1 w-full relative flex items-center justify-center overflow-hidden">
+        <BarcodeScanner onScanSuccess={handleScan} />
+        
+        {/* Overlay Instructions */}
+        <div className="absolute top-10 left-0 right-0 text-center pointer-events-none">
+          <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">Center Barcode in Frame</p>
+        </div>
+      </div>
 
+      {/* Scanned Badge Overlay */}
       {lastScanned && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
-          <Badge className="bg-green-500 text-white px-4 py-2 text-lg animate-bounce flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5" />
-            Sent: {lastScanned}
-          </Badge>
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
+          <div className="bg-green-500 text-white px-8 py-4 rounded-3xl shadow-2xl animate-in zoom-in-50 duration-300 flex flex-col items-center gap-2">
+            <CheckCircle2 className="w-10 h-10" />
+            <p className="font-black text-xl tracking-tighter">{lastScanned}</p>
+            <p className="text-[10px] font-bold uppercase opacity-80">Sent to Laptop</p>
+          </div>
         </div>
       )}
     </div>

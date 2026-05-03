@@ -405,21 +405,6 @@ export default function BillingPage() {
             </Dialog>
           </div>
 
-          <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Camera className="w-4 h-4" />
-                <span className="md:hidden">Scan Barcode</span>
-                <span className="hidden md:inline">Laptop Camera</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Scan Medicine Barcode</DialogTitle>
-              </DialogHeader>
-              <BarcodeScanner onScanSuccess={handleBarcodeScan} />
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 

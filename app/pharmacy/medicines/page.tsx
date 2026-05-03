@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit2, Trash2, Search, RefreshCw, Pill, Save, X, Check, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, RefreshCw, Pill, Save, X, Check, AlertCircle, Camera, Smartphone } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import ApiClient from '@/lib/api';
@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import BarcodeScanner from '@/components/pharmacy/BarcodeScanner';
+import { QRCodeCanvas } from 'qrcode.react';
+import { io } from 'socket.io-client';
 
 export default function PharmacyMedicinesPage() {
   const { user, loading: authLoading } = useAuth();
@@ -49,6 +52,89 @@ export default function PharmacyMedicinesPage() {
     description: '',
     barcode: ''
   });
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState<'catalog' | 'manual'>('catalog');
+  const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [customIp, setCustomIp] = useState('');
+
+  // Auto-detect IP on mount (only on localhost)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return;
+    }
+
+    const fetchNetworkInfo = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+        const response = await fetch(`${backendUrl}/network-info`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.localIp && data.localIp !== 'localhost') {
+            setCustomIp(data.localIp);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch network info:', err);
+      }
+    };
+    fetchNetworkInfo();
+  }, []);
+
+  const getBaseUrl = () => {
+    if (typeof window === 'undefined') return '';
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return window.location.origin;
+    }
+    if (customIp) {
+      const port = window.location.port ? `:${window.location.port}` : '';
+      return `${window.location.protocol}//${customIp}${port}`;
+    }
+    return window.location.origin;
+  };
+
+  const getSocketUrl = () => {
+    const envApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envApiUrl && !envApiUrl.includes('localhost') && !envApiUrl.includes('127.0.0.1')) {
+      return envApiUrl.replace(/\/api$/, '');
+    }
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return 'http://localhost:3001';
+    }
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  };
+
+  const roomId = user?.id ? `billing-${user.id}` : null;
+  const mobileScannerUrl = roomId
+    ? `${getBaseUrl()}/pharmacy/billing/scanner?roomId=${roomId}&socketUrl=${encodeURIComponent(getSocketUrl())}`
+    : '';
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const socket = io(getSocketUrl(), {
+      transports: ['polling', 'websocket'],
+      reconnectionAttempts: 10,
+    });
+
+    socket.on('connect', () => {
+      setIsSocketConnected(true);
+      socket.emit('join-room', roomId);
+    });
+
+    socket.on('connect_error', () => {
+      setIsSocketConnected(false);
+    });
+
+    socket.on('barcode-scanned', ({ barcode }) => {
+      handleScannerResult(barcode);
+      toast.success('Mobile scan received!');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [roomId, scannerTarget, isAddDialogOpen]); // Re-connect if target or dialog status changes to ensure correct state capture
 
   useEffect(() => {
     if (user) {
@@ -149,6 +235,16 @@ export default function PharmacyMedicinesPage() {
     }
   };
 
+  const handleScannerResult = (barcode: string) => {
+    if (scannerTarget === 'catalog') {
+      handleCatalogSearch(barcode);
+    } else {
+      setNewMedicine({ ...newMedicine, barcode });
+    }
+    setIsScannerOpen(false);
+    toast.success(`Scanned: ${barcode}`);
+  };
+
   const resetAddForm = () => {
     setSelectedMedicine(null);
     setCatalogSearch('');
@@ -204,7 +300,55 @@ export default function PharmacyMedicinesPage() {
           <p className="text-gray-500 font-medium max-w-md">Manage your active stock levels, unit pricing, and reorder alerts.</p>
         </div>
 
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        <div className="flex gap-3">
+          <Dialog open={isMobileScannerOpen} onOpenChange={setIsMobileScannerOpen}>
+            <div className="flex items-center gap-3">
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2 rounded-xl border-dashed border-2 hover:bg-primary/5 hover:border-primary/50 transition-all">
+                  <Smartphone className="w-4 h-4" />
+                  Mobile Sync
+                </Button>
+              </DialogTrigger>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isSocketConnected ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${isSocketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                {isSocketConnected ? 'Ready' : 'Offline'}
+              </div>
+            </div>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Use Mobile as Scanner</DialogTitle>
+                <DialogDescription>
+                  Link your phone to scan medicine boxes directly into your inventory.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center space-y-4 p-6">
+                <div className="bg-white p-4 rounded-xl shadow-inner border">
+                  <QRCodeCanvas value={mobileScannerUrl} size={200} />
+                </div>
+                
+                <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
+                  <p className="text-[11px] text-indigo-700 leading-tight">
+                    1. Scan this QR code with your <b>Phone Camera</b>.<br />
+                    2. Scanned items will appear in the <b>Add Medicine</b> dialog automatically.
+                  </p>
+                  <div className="p-1.5 bg-white/50 rounded border border-indigo-100 text-[10px] font-mono text-indigo-600 break-all">
+                    {mobileScannerUrl}
+                  </div>
+                </div>
+
+                <div className={`w-full p-3 rounded-lg border ${window.location.protocol === 'https:' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                  <p className={`text-[10px] leading-tight ${window.location.protocol === 'https:' ? 'text-green-800' : 'text-amber-800'}`}>
+                    <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
+                    {window.location.protocol === 'https:' 
+                      ? ' HTTPS detected. Mobile camera will work.'
+                      : ' Mobile camera requires HTTPS/Tunnel.'}
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) resetAddForm();
         }}>
@@ -224,15 +368,15 @@ export default function PharmacyMedicinesPage() {
 
             {!selectedMedicine && !showCreateForm && (
               <div className="space-y-4 py-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search master catalog (e.g. Paracetamol)"
-                    className="pl-9"
-                    value={catalogSearch}
-                    onChange={(e) => handleCatalogSearch(e.target.value)}
-                  />
-                </div>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search master catalog..."
+                      className="pl-9"
+                      value={catalogSearch}
+                      onChange={(e) => handleCatalogSearch(e.target.value)}
+                    />
+                  </div>
 
                 <div className="max-h-[200px] overflow-y-auto space-y-2">
                   {isSearchingCatalog && (
@@ -262,6 +406,7 @@ export default function PharmacyMedicinesPage() {
                         className="text-primary font-black text-xs uppercase tracking-widest"
                         onClick={() => {
                           setShowCreateForm(true);
+                          setScannerTarget('manual');
                           setNewMedicine({ ...newMedicine, name: catalogSearch });
                         }}
                       >
@@ -366,7 +511,7 @@ export default function PharmacyMedicinesPage() {
                       value={newMedicine.barcode}
                       onChange={(e) => setNewMedicine({ ...newMedicine, barcode: e.target.value })}
                       className="rounded-lg font-bold border-primary/20"
-                      placeholder="Scan or type barcode"
+                      placeholder="Barcode will appear here when scanned by phone"
                     />
                   </div>
                 </div>
@@ -403,6 +548,7 @@ export default function PharmacyMedicinesPage() {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
 
       <div className="relative group">
         <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
