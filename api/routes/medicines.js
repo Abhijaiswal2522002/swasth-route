@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
         { name: { $regex: search, $options: 'i' } },
         { manufacturer: { $regex: search, $options: 'i' } },
         { composition: { $regex: search, $options: 'i' } },
+        { barcode: { $regex: search, $options: 'i' } },
       ];
     }
 

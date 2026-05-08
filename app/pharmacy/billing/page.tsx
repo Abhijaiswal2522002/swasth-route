@@ -179,9 +179,10 @@ export default function BillingPage() {
 
   const handleBarcodeScan = React.useCallback(async (barcode: string) => {
     try {
+      const cleanBarcode = barcode.trim();
       const token = localStorage.getItem('authToken');
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${backendUrl}/invoices/barcode/${barcode}`, {
+      const response = await fetch(`${backendUrl}/invoices/barcode/${cleanBarcode}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -93,7 +93,15 @@ router.post('/', verifyToken, verifyPharmacy, async (req, res) => {
 router.get('/barcode/:barcode', verifyToken, verifyPharmacy, async (req, res) => {
   try {
     const { barcode } = req.params;
-    const medicine = await Medicine.findOne({ barcode, status: 'active' });
+    // More robust barcode search: exact match or partial match for similar barcodes
+    const medicine = await Medicine.findOne({ 
+      $or: [
+        { barcode: barcode },
+        { barcode: barcode.trim() },
+        { barcode: { $regex: barcode, $options: 'i' } }
+      ],
+      status: 'active' 
+    });
     
     if (!medicine) {
       return res.status(404).json({ error: 'Medicine not found with this barcode' });
