@@ -77,8 +77,7 @@ export default function PharmacyMedicinesPage() {
 
     const fetchNetworkInfo = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const response = await fetch(`${backendUrl}/network-info`);
+        const response = await fetch(`/api/network-info`);
         if (response.ok) {
           const data = await response.json();
           if (data.localIp && data.localIp !== 'localhost') {

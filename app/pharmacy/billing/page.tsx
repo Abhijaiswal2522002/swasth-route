@@ -62,8 +62,7 @@ export default function BillingPage() {
 
     const fetchNetworkInfo = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-        const response = await fetch(`${backendUrl}/network-info`);
+        const response = await fetch(`/api/network-info`);
         if (response.ok) {
           const data = await response.json();
           if (data.localIp && data.localIp !== 'localhost') {
@@ -136,28 +135,28 @@ export default function BillingPage() {
 
   const addToCart = (medicine: Medicine, inventoryPrice?: number) => {
     const price = inventoryPrice || medicine.price || 0;
-    const existingItem = cart.find((item) => item.medicineId === medicine._id);
-
-    if (existingItem) {
-      setCart(
-        cart.map((item) =>
+    
+    setCart(prevCart => {
+      const existingItem = prevCart.find((item) => item.medicineId === medicine._id);
+      if (existingItem) {
+        return prevCart.map((item) =>
           item.medicineId === medicine._id
             ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * price }
             : item
-        )
-      );
-    } else {
-      setCart([
-        ...cart,
-        {
-          medicineId: medicine._id,
-          name: medicine.name,
-          quantity: 1,
-          price: price,
-          total: price,
-        },
-      ]);
-    }
+        );
+      } else {
+        return [
+          ...prevCart,
+          {
+            medicineId: medicine._id,
+            name: medicine.name,
+            quantity: 1,
+            price: price,
+            total: price,
+          },
+        ];
+      }
+    });
     toast.success(`${medicine.name} added to cart`);
   };
 
@@ -178,26 +177,33 @@ export default function BillingPage() {
   };
 
   const handleBarcodeScan = React.useCallback(async (barcode: string) => {
+    console.log(`[Scanning] Barcode: ${barcode}`);
     try {
       const cleanBarcode = barcode.trim();
       const token = localStorage.getItem('authToken');
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-      const response = await fetch(`${backendUrl}/invoices/barcode/${cleanBarcode}`, {
+      const url = `/api/invoices/barcode/${encodeURIComponent(cleanBarcode)}`;
+      console.log(`[Scanning] Fetching from: ${url}`);
+      
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const { medicine, inventory } = await response.json();
+        console.log(`[Scanning] Success: Found ${medicine.name}`);
         addToCart(medicine, inventory?.price);
         setIsScannerOpen(false);
         toast.success(`Scanned: ${medicine.name}`);
       } else {
-        toast.error('Medicine not found with this barcode');
+        const errorData = await response.json().catch(() => ({}));
+        console.warn(`[Scanning] Not found or Error:`, errorData);
+        toast.error(errorData.error || 'Medicine not found with this barcode');
       }
     } catch (error) {
+      console.error(`[Scanning] Error:`, error);
       toast.error('Error scanning barcode');
     }
-  }, [cart]); // Added cart as dependency since addToCart depends on it
+  }, []); // Added cart as dependency since addToCart depends on it
 
   // Mobile Scanner Setup
   const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -205,7 +211,7 @@ export default function BillingPage() {
 
   const getBaseUrl = () => {
     if (typeof window === 'undefined') return '';
-    
+
     // In production (non-localhost), ALWAYS use the current origin
     if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       return window.location.origin;
@@ -230,7 +236,7 @@ export default function BillingPage() {
     if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       return 'http://localhost:3001';
     }
-    
+
     // Priority 3: Use the current origin (for same-origin tunnels/production)
     return typeof window !== 'undefined' ? window.location.origin : '';
   };
@@ -385,7 +391,7 @@ export default function BillingPage() {
                   <div className="bg-white p-4 rounded-xl shadow-inner border">
                     <QRCodeCanvas value={mobileScannerUrl} size={200} />
                   </div>
-                  
+
                   <div className="w-full p-4 bg-indigo-50 rounded-lg border border-indigo-100 space-y-3">
                     <p className="text-[11px] text-indigo-700 leading-tight">
                       {window.location.hostname === 'localhost' && (
@@ -428,8 +434,8 @@ export default function BillingPage() {
 
                   <div className={`w-full p-3 rounded-lg border ${window.location.protocol === 'https:' ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
                     <p className={`text-[10px] leading-tight ${window.location.protocol === 'https:' ? 'text-green-800' : 'text-amber-800'}`}>
-                      <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span> 
-                      {window.location.protocol === 'https:' 
+                      <span className="font-bold">{window.location.protocol === 'https:' ? '✅ Secure Connection:' : '⚠️ Security Requirement:'}</span>
+                      {window.location.protocol === 'https:'
                         ? ' You are on a secure (HTTPS) connection. The mobile camera will work perfectly.'
                         : ' Mobile browsers block cameras on plain HTTP links. Use a tunnel (ngrok or Cloudflare) or VS Code Port Forwarding to get an HTTPS link for testing.'}
                     </p>
