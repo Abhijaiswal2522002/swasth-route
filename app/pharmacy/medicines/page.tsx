@@ -249,6 +249,8 @@ export default function PharmacyMedicinesPage() {
   const handleScannerResult = (barcode: string) => {
     if (scannerTarget === 'catalog') {
       handleCatalogSearch(barcode);
+      // Store the scanned barcode in newMedicine state for the Create New form
+      setNewMedicine(prev => ({ ...prev, barcode }));
     } else {
       setNewMedicine({ ...newMedicine, barcode });
     }
@@ -440,7 +442,12 @@ export default function PharmacyMedicinesPage() {
                         onClick={() => {
                           setShowCreateForm(true);
                           setScannerTarget('manual');
-                          setNewMedicine({ ...newMedicine, name: catalogSearch });
+                          const isBarcode = catalogSearch === newMedicine.barcode;
+                          setNewMedicine({ 
+                            ...newMedicine, 
+                            name: isBarcode ? '' : catalogSearch,
+                            barcode: catalogSearch 
+                          });
                         }}
                       >
                         Create New Entry
