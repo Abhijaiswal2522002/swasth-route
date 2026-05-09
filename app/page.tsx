@@ -13,6 +13,9 @@ import ForPharmacies from '@/components/ForPharmacies';
 import TrustSection from '@/components/TrustSection';
 import PartnerLogos from '@/components/PartnerLogos';
 import PlatformShowcase from '@/components/PlatformShowcase';
+import DeliveryShowcase from '@/components/DeliveryShowcase';
+import PharmacyMagic from '@/components/PharmacyMagic';
+import ProductOverview from '@/components/ProductOverview';
 import LiveStatsTicker from '@/components/LiveStatsTicker';
 
 import { useGeolocation } from '@/lib/hooks/useGeolocation';
@@ -102,7 +105,10 @@ export default function HomePage() {
             <PartnerLogos />
             <HowItWorks />
             <FeaturesSection />
+            <ProductOverview />
             <PlatformShowcase />
+            <DeliveryShowcase />
+            <PharmacyMagic />
             <LiveStatsTicker />
             <TrustSection />
             <ForPharmacies />
