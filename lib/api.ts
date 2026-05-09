@@ -1,8 +1,8 @@
 const API_URL = typeof window !== 'undefined' 
   ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'http://localhost:3001/api' 
-      : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost') 
-          ? process.env.NEXT_PUBLIC_API_URL 
+      : (process.env.NEXT_PUBLIC_API_URL 
+          ? (process.env.NEXT_PUBLIC_API_URL.endsWith('/api') ? process.env.NEXT_PUBLIC_API_URL : `${process.env.NEXT_PUBLIC_API_URL}/api`)
           : '/api'))
   : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
 
@@ -621,6 +621,14 @@ export class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  static async getInvoices() {
+    return this.request<any[]>('/invoices');
+  }
+
+  static async searchInventory(query: string) {
+    return this.request<any[]>(`/invoices/search/inventory?query=${encodeURIComponent(query)}`);
   }
 
   static async getMedicineByBarcode(barcode: string) {

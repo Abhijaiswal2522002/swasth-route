@@ -135,16 +135,12 @@ export default function BillingPage() {
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.length >= 2) {
-        try {
-          const token = localStorage.getItem('authToken');
-          const response = await fetch(`/api/invoices/search/inventory?query=${encodeURIComponent(searchQuery)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = await response.json();
-          setSearchResults(data);
-        } catch (error) {
-          console.error('Search error:', error);
-        }
+          const response = await ApiClient.searchInventory(searchQuery);
+          if (response.data) {
+            setSearchResults(response.data);
+          } else {
+            console.error('Search error:', response.error);
+          }
       } else {
         setSearchResults([]);
       }
@@ -478,44 +474,44 @@ export default function BillingPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-              </div>
 
-              {searchResults.length > 0 && (
-                <div className="border rounded-xl overflow-hidden bg-white shadow-lg absolute z-10 w-full max-w-2xl mt-2 max-h-[400px] overflow-y-auto border-primary/10">
-                  {searchResults.map((med: any) => (
-                    <div
-                      key={med._id}
-                      className="mx-2 my-2 p-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-blue-50/30 flex justify-between items-center cursor-pointer group transition-all duration-200 shadow-sm hover:shadow-md"
-                      onClick={() => {
-                        addToCart({
-                          _id: med.medicineId,
-                          name: med.medicineName,
-                          price: med.price
-                        }, med.price);
-                        setSearchQuery('');
-                        setSearchResults([]);
-                      }}
-                    >
-                      <div className="flex-1 min-w-0 mr-6">
-                        <p className="font-bold text-gray-900 group-hover:text-primary transition-colors truncate text-sm" title={med.medicineName}>
-                          {med.medicineName}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-500 rounded border border-gray-100">
-                            Stock: {med.quantity}
-                          </span>
+                {searchResults.length > 0 && (
+                  <div className="border rounded-xl overflow-hidden bg-white shadow-lg absolute z-20 w-full mt-2 max-h-[400px] overflow-y-auto border-primary/10 top-full left-0">
+                    {searchResults.map((med: any) => (
+                      <div
+                        key={med._id}
+                        className="mx-2 my-2 p-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-blue-50/30 flex justify-between items-center cursor-pointer group transition-all duration-200 shadow-sm hover:shadow-md"
+                        onClick={() => {
+                          addToCart({
+                            _id: med.medicineId,
+                            name: med.medicineName,
+                            price: med.price
+                          }, med.price);
+                          setSearchQuery('');
+                          setSearchResults([]);
+                        }}
+                      >
+                        <div className="flex-1 min-w-0 mr-6">
+                          <p className="font-bold text-gray-900 group-hover:text-primary transition-colors truncate text-sm" title={med.medicineName}>
+                            {med.medicineName}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-500 rounded border border-gray-100">
+                              Stock: {med.quantity}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="font-bold text-green-600 text-sm">₹{med.price}</span>
+                          <div className="p-1.5 rounded-full bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                            <Plus className="w-3.5 h-3.5" />
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-green-600 text-sm">₹{med.price}</span>
-                        <div className="p-1.5 rounded-full bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                          <Plus className="w-3.5 h-3.5" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="rounded-md border">
                 <Table>

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Receipt, Calendar, User, Phone, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { ApiClient } from '@/lib/api';
 
 interface Invoice {
   _id: string;
@@ -26,13 +27,11 @@ export default function InvoicesPage() {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch('/api/invoices', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setInvoices(data);
+        const response = await ApiClient.getInvoices();
+        if (response.data) {
+          setInvoices(response.data);
+        } else {
+          console.error('Fetch invoices error:', response.error);
         }
       } catch (error) {
         console.error('Fetch invoices error:', error);
