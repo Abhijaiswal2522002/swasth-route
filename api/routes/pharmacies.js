@@ -4,6 +4,7 @@ import { verifyToken, verifyPharmacy } from '../middleware/auth.js';
 import Pharmacy from '../models/Pharmacy.js';
 import Order from '../models/Order.js';
 import Earning from '../models/Earning.js';
+import Invoice from '../models/Invoice.js';
 
 const router = express.Router();
 
@@ -66,14 +67,23 @@ router.put('/profile', verifyPharmacy, uploadPharmacy.fields([
   { name: 'licenseImage', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude, businessHours } = req.body;
+    const { name, phone, address, licenseNumber, licenseExpiry, bankDetails, latitude, longitude, businessHours, isOpen } = req.body;
 
     const updateData = {
+      name,
+      phone,
       address: typeof address === 'string' && address !== 'undefined' ? JSON.parse(address) : address,
       licenseNumber,
       bankDetails: typeof bankDetails === 'string' && bankDetails !== 'undefined' ? JSON.parse(bankDetails) : bankDetails,
       businessHours: typeof businessHours === 'string' && businessHours !== 'undefined' ? JSON.parse(businessHours) : businessHours,
     };
+
+    if (isOpen !== undefined) {
+      const currentPharmacy = await Pharmacy.findById(req.pharmacy.id);
+      if (currentPharmacy && (currentPharmacy.status === 'active' || currentPharmacy.status === 'inactive')) {
+        updateData.status = isOpen === 'true' || isOpen === true ? 'active' : 'inactive';
+      }
+    }
 
     if (licenseExpiry && licenseExpiry.trim() !== '') {
       updateData.licenseExpiry = licenseExpiry;
@@ -108,44 +118,6 @@ router.put('/profile', verifyPharmacy, uploadPharmacy.fields([
     res.json({ message: 'Profile updated successfully', pharmacy });
   } catch (error) {
     console.error('Profile Update Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-// Get pharmacy details
-router.get('/:id', async (req, res) => {
-  try {
-    const pharmacy = await Pharmacy.findById(req.params.id).select('-password');
-    if (!pharmacy) {
-      return res.status(404).json({ error: 'Pharmacy not found' });
-    }
-    res.json(pharmacy);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Search medicines in pharmacy
-router.get('/:id/medicines', async (req, res) => {
-  try {
-    const { query } = req.query;
-    const pharmacy = await Pharmacy.findById(req.params.id);
-
-    if (!pharmacy) {
-      return res.status(404).json({ error: 'Pharmacy not found' });
-    }
-
-    let medicines = pharmacy.inventory;
-
-    if (query) {
-      medicines = medicines.filter(med =>
-        med.medicineName?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    res.json(medicines);
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -251,20 +223,41 @@ router.get('/orders/list', verifyPharmacy, async (req, res) => {
 // Get pharmacy analytics
 router.get('/analytics', verifyPharmacy, async (req, res) => {
   try {
-    const pharmacy = await Pharmacy.findById(req.pharmacy.id);
+    const pharmacyId = req.pharmacy.id;
+    const pharmacy = await Pharmacy.findById(pharmacyId);
 
-    const orders = await Order.find({ pharmacyId: req.pharmacy.id });
+    const [orders, invoices, earnings] = await Promise.all([
+      Order.find({ pharmacyId }),
+      Invoice.find({ pharmacyId }),
+      Earning.find({ pharmacyId, type: 'order', status: 'completed' })
+    ]);
+
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
-    const totalRevenue = pharmacy.totalRevenue || 0; // Use calculated revenue from field
-    const averageRating = orders.length > 0 ? orders.reduce((sum, o) => sum + (o.rating?.score || 5), 0) / orders.length : 5;
+    
+    // Calculate Online Revenue (Net Payouts)
+    const onlineNetRevenue = earnings.reduce((sum, e) => sum + e.amount, 0);
+    
+    // Calculate Offline Revenue (POS)
+    const offlineRevenue = invoices.reduce((sum, i) => sum + i.totalAmount, 0);
+    
+    // Total Liquidity is the sum of both
+    const totalRevenue = onlineNetRevenue + offlineRevenue;
+
+    // Average rating only applies to online orders with ratings
+    const ordersWithRatings = orders.filter(o => o.rating && o.rating.score);
+    const averageRating = ordersWithRatings.length > 0 
+      ? ordersWithRatings.reduce((sum, o) => sum + o.rating.score, 0) / ordersWithRatings.length 
+      : 5;
 
     res.json({
-      totalOrders: orders.length,
-      deliveredOrders: deliveredOrders.length,
+      totalOrders: orders.length + invoices.length,
+      deliveredOrders: deliveredOrders.length + invoices.length,
       pendingOrders: orders.filter(o => o.status === 'pending').length,
       totalRevenue,
+      onlineNetRevenue,
+      offlineRevenue,
       averageRating,
-      commissionRate: pharmacy.commissionRate,
+      commissionRate: pharmacy.commissionRate || 10,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -276,6 +269,50 @@ router.get('/earnings', verifyPharmacy, async (req, res) => {
   try {
     const earnings = await Earning.find({ pharmacyId: req.pharmacy.id }).sort({ createdAt: -1 });
     res.json(earnings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+// Get pharmacy details
+router.get('/:id', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid pharmacy ID format' });
+    }
+    const pharmacy = await Pharmacy.findById(req.params.id).select('-password');
+    if (!pharmacy) {
+      return res.status(404).json({ error: 'Pharmacy not found' });
+    }
+    res.json(pharmacy);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Search medicines in pharmacy
+router.get('/:id/medicines', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid pharmacy ID format' });
+    }
+    const { query } = req.query;
+    const pharmacy = await Pharmacy.findById(req.params.id);
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: 'Pharmacy not found' });
+    }
+
+    let medicines = pharmacy.inventory;
+
+    if (query) {
+      medicines = medicines.filter(med =>
+        med.medicineName?.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    res.json(medicines);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

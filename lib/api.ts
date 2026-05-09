@@ -381,6 +381,13 @@ export class ApiClient {
     });
   }
 
+  static async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
   // Cart endpoints
   static async getCart(city?: string, pincode?: string) {
     const params = new URLSearchParams();

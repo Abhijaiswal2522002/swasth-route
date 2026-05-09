@@ -23,13 +23,37 @@ export default function EarningsPage() {
   const fetchEarningsData = async () => {
     setIsLoading(true);
     try {
-      const [analyticsRes, ordersRes] = await Promise.all([
+      const [analyticsRes, ordersRes, invoicesRes] = await Promise.all([
         ApiClient.getPharmacyAnalytics(),
-        ApiClient.getPharmacyOrders('delivered')
+        ApiClient.getPharmacyOrders('delivered'),
+        ApiClient.getInvoices()
       ]);
 
       if (analyticsRes.data) setAnalytics(analyticsRes.data as any);
-      if (ordersRes.data) setRecentOrders((ordersRes.data as any[]).slice(0, 10));
+
+      const orders = (ordersRes.data as any[]) || [];
+      const invoices = (invoicesRes.data as any[]) || [];
+
+      const formattedOrders = orders.map(o => ({
+        _id: o._id,
+        referenceId: o.orderId,
+        createdAt: o.createdAt,
+        total: o.total,
+        type: 'Online'
+      }));
+
+      const formattedInvoices = invoices.map(i => ({
+        _id: i._id,
+        referenceId: i.invoiceNumber,
+        createdAt: i.createdAt,
+        total: i.totalAmount,
+        type: 'POS'
+      }));
+
+      const combined = [...formattedOrders, ...formattedInvoices]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setRecentOrders(combined.slice(0, 15));
     } catch (error) {
       console.error('Error fetching earnings data:', error);
     } finally {
@@ -88,8 +112,15 @@ export default function EarningsPage() {
                 <IndianRupee className="w-6 h-6" />
               </div>
             </div>
-            <div className="mt-6 flex items-center gap-2 text-green-600 font-black text-[10px] uppercase tracking-widest">
-              <ArrowUpRight className="w-4 h-4" /> 12% vs last week
+            <div className="mt-6 flex flex-col gap-1">
+              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                <span className="text-gray-400">Online Net</span>
+                <span className="text-primary">₹{analytics?.onlineNetRevenue || 0}</span>
+              </div>
+              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                <span className="text-gray-400">Offline POS</span>
+                <span className="text-blue-500">₹{analytics?.offlineRevenue || 0}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -99,14 +130,14 @@ export default function EarningsPage() {
             <div className="flex items-start justify-between">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Net Payout</p>
-                <p className="text-3xl font-black text-green-600 tracking-tighter">₹{Math.floor((analytics?.totalRevenue || 0) * (1 - (analytics?.commissionRate || 10) / 100))}</p>
+                <p className="text-3xl font-black text-green-600 tracking-tighter">₹{analytics?.totalRevenue || 0}</p>
               </div>
               <div className="p-4 bg-green-50 rounded-2xl text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
                 <TrendingUp className="w-6 h-6" />
               </div>
             </div>
             <div className="mt-6 flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-              After 10% Platform Fee
+              Available for withdrawal
             </div>
           </CardContent>
         </Card>
@@ -223,17 +254,21 @@ export default function EarningsPage() {
                 {recentOrders.length > 0 ? recentOrders.map((order, i) => (
                   <div key={order._id} className="p-6 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                        <ArrowUpRight size={18} />
+                      <div className={`w-10 h-10 ${order.type === 'POS' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'} rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300`}>
+                        {order.type === 'POS' ? <FileText size={18} /> : <ArrowUpRight size={18} />}
                       </div>
                       <div>
-                        <p className="font-black text-sm text-gray-900 uppercase tracking-tight">{order.orderId}</p>
+                        <p className="font-black text-sm text-gray-900 uppercase tracking-tight">{order.referenceId}</p>
                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{new Date(order.createdAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-gray-900">₹{order.total}</p>
-                      <span className="text-[8px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">Settled</span>
+                      <div className="flex justify-end mt-1">
+                        <span className={`text-[8px] font-black ${order.type === 'POS' ? 'text-blue-600 bg-blue-50' : 'text-green-600 bg-green-50'} px-2 py-0.5 rounded-full uppercase tracking-tighter`}>
+                          {order.type === 'POS' ? 'Offline POS' : 'Online Order'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )) : (
@@ -241,7 +276,7 @@ export default function EarningsPage() {
                     <div className="w-16 h-16 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-100 flex items-center justify-center text-gray-200">
                       <FileText size={32} />
                     </div>
-                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No settled payouts yet</p>
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No settled transactions yet</p>
                   </div>
                 )}
               </div>

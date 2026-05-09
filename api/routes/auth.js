@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Pharmacy from '../models/Pharmacy.js';
 import Rider from '../models/Rider.js';
+import { verifyToken } from '../middleware/auth.js';
 import { sendAdminNotification, sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerification } from '../utils/email.js';
 
 const router = express.Router();
@@ -455,6 +456,42 @@ router.post('/reset-password', async (req, res) => {
     await user.save();
 
     res.json({ message: 'Password reset successful' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Change Password (Authenticated)
+router.post('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const { id, role } = req.user;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+
+    let account;
+    if (role === 'pharmacy') {
+      account = await Pharmacy.findById(id);
+    } else {
+      account = await User.findById(id);
+    }
+
+    if (!account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, account.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Incorrect current password' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    account.password = hashedPassword;
+    await account.save();
+
+    res.json({ message: 'Password updated successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

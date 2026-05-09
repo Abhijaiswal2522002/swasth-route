@@ -18,7 +18,7 @@ export const verifyToken = (req, res, next) => {
 
 export const verifyPharmacy = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
     
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
@@ -39,7 +39,7 @@ export const verifyPharmacy = (req, res, next) => {
 
 export const verifyAdmin = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
     
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
@@ -60,7 +60,7 @@ export const verifyAdmin = (req, res, next) => {
 
 export const verifyRider = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.token;
     
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });

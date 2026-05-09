@@ -56,9 +56,12 @@ function Section({ title, children, onSave, isSaving }: { title: string; childre
 export default function PharmacySettingsPage() {
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
+  
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
   const [formData, setFormData] = useState<any>({
     name: '',
@@ -94,9 +97,17 @@ export default function PharmacySettingsPage() {
   const fetchProfile = async () => {
     setIsLoading(true);
     try {
-      const res = await ApiClient.getPharmacyProfile();
-      if (res.data) {
-        const data = res.data as any;
+      const [profileRes, analyticsRes] = await Promise.all([
+        ApiClient.getPharmacyProfile(),
+        ApiClient.getPharmacyAnalytics()
+      ]);
+
+      if (analyticsRes.data) {
+        setAnalytics(analyticsRes.data);
+      }
+
+      if (profileRes.data) {
+        const data = profileRes.data as any;
         setProfile(data);
         
         // Ensure location is extracted from GeoJSON
@@ -228,6 +239,33 @@ export default function PharmacySettingsPage() {
       }
     } catch (error) {
       console.error('Error saving profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwords.current || !passwords.new) {
+      alert('Please fill in both current and new passwords.');
+      return;
+    }
+    if (passwords.new !== passwords.confirm) {
+      alert('New passwords do not match!');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const res = await ApiClient.changePassword(passwords.current, passwords.new);
+      if (!res.error) {
+        alert('Password updated successfully!');
+        setPasswords({ current: '', new: '', confirm: '' });
+      } else {
+        alert(res.error || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      alert('An error occurred. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -442,6 +480,33 @@ export default function PharmacySettingsPage() {
             </Section>
           )}
 
+          {/* DELIVERY */}
+          {activeTab === 'delivery' && (
+            <Section title="🚚 Logistics & Fulfillment">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                <div className="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">Service Radius</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tighter">5.0 KM</p>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium mt-4">Standard delivery radius from your shop location.</p>
+                </div>
+                <div className="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col justify-between">
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-1">Avg. Dispatch</p>
+                    <p className="text-4xl font-black text-gray-900 tracking-tighter">15 MIN</p>
+                  </div>
+                  <p className="text-xs text-gray-500 font-medium mt-4">Average time taken to hand over orders to riders.</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 p-6 rounded-[2rem] mt-4">
+                <p className="text-xs font-bold text-amber-800 leading-relaxed uppercase tracking-wide">
+                  💡 Delivery logistics are managed by SwasthRoute's specialized rider network. Ensure your location data is accurate to minimize delays.
+                </p>
+              </div>
+            </Section>
+          )}
+
           {/* LICENSE */}
           {activeTab === 'license' && (
             <Section title="📄 Regulatory Compliance" onSave={handleSave} isSaving={isSaving}>
@@ -570,14 +635,14 @@ export default function PharmacySettingsPage() {
                     <div className="absolute top-[-20px] right-[-20px] opacity-5"><TrendingUp className="w-32 h-32" /></div>
                     <p className="text-[10px] text-primary/60 font-black uppercase tracking-[0.2em] mb-1">Contracted Growth</p>
                     <div>
-                      <p className="text-5xl font-black text-primary tracking-tighter">10%</p>
+                      <p className="text-5xl font-black text-primary tracking-tighter">{analytics?.commissionRate || 10}%</p>
                       <p className="text-xs text-primary/50 font-bold mt-2 uppercase tracking-widest leading-relaxed">Platform Service Fee <br />per completed delivery</p>
                     </div>
                   </div>
                   <div className="p-8 bg-green-50 rounded-[2rem] border border-green-100 flex flex-col justify-between h-48">
                     <p className="text-[10px] text-green-600/60 font-black uppercase tracking-[0.2em] mb-1">Settled Monthly</p>
                     <div>
-                      <p className="text-5xl font-black text-green-700 tracking-tighter">₹11,850</p>
+                      <p className="text-5xl font-black text-green-700 tracking-tighter">₹{analytics?.totalRevenue?.toLocaleString() || '0'}</p>
                       <p className="text-xs text-green-600/50 font-bold mt-2 uppercase tracking-widest leading-relaxed">Net Liquidity <br />current billing cycle</p>
                     </div>
                   </div>
@@ -644,19 +709,44 @@ export default function PharmacySettingsPage() {
               <div className="space-y-6 mt-4">
                 <div>
                   <FieldLabel>Current Secret Phrase</FieldLabel>
-                  <Input type="password" placeholder="••••••••" className="h-14 rounded-2xl border-gray-100 font-bold" />
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={passwords.current}
+                    onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                    className="h-14 rounded-2xl border-gray-100 font-bold" 
+                  />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <FieldLabel>New Secret Phrase</FieldLabel>
-                    <Input type="password" placeholder="New strong password" className="h-14 rounded-2xl border-gray-100 font-bold" />
+                    <Input 
+                      type="password" 
+                      placeholder="New strong password" 
+                      value={passwords.new}
+                      onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                      className="h-14 rounded-2xl border-gray-100 font-bold" 
+                    />
                   </div>
                   <div>
                     <FieldLabel>Protocol Confirmation</FieldLabel>
-                    <Input type="password" placeholder="Repeat new password" className="h-14 rounded-2xl border-gray-100 font-bold" />
+                    <Input 
+                      type="password" 
+                      placeholder="Repeat new password" 
+                      value={passwords.confirm}
+                      onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                      className="h-14 rounded-2xl border-gray-100 font-bold" 
+                    />
                   </div>
                 </div>
-                <Button className="w-full sm:w-auto rounded-xl h-12 px-8 font-black uppercase tracking-widest text-[10px]">Update Credentials</Button>
+                <Button 
+                  className="w-full sm:w-auto rounded-xl h-12 px-8 font-black uppercase tracking-widest text-[10px]"
+                  onClick={handleChangePassword}
+                  disabled={isSaving}
+                >
+                  {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                  Update Credentials
+                </Button>
               </div>
 
               <div className="pt-10 border-t border-gray-50 mt-12">
