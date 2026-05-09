@@ -654,15 +654,7 @@ export default function BillingPage() {
                 {isProcessing ? 'Processing...' : 'Generate Invoice'}
                 {!isProcessing && <Save className="w-5 h-5 ml-2" />}
               </Button>
-              <Button
-                variant="outline"
-                className="w-full mt-2"
-                onClick={handlePrint}
-                disabled={cart.length === 0 && !generatedInvoice}
-              >
-                <Printer className="w-4 h-4 mr-2" />
-                Print Bill
-              </Button>
+
             </CardContent>
           </Card>
         </div>
