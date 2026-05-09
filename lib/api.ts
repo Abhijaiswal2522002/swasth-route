@@ -426,6 +426,10 @@ export class ApiClient {
     return this.request<any>('/users/profile');
   }
 
+  static async getPharmacyProfile() {
+    return this.request<any>('/pharmacies/profile');
+  }
+
   static async updateUserProfile(data: any) {
     const isFormData = data instanceof FormData;
     return this.request('/users/profile', {
@@ -545,10 +549,6 @@ export class ApiClient {
   }
 
   // Pharmacy dashboard endpoints
-  static async getPharmacyProfile() {
-    return this.request('/pharmacies/profile');
-  }
-
   static async updatePharmacyProfile(data: any) {
     const isFormData = data instanceof FormData;
     return this.request('/pharmacies/profile', {
@@ -613,6 +613,13 @@ export class ApiClient {
     return this.request('/pharmacies/inventory/add', {
       method: 'POST',
       body: JSON.stringify({ medicineName, quantity, price, reorderLevel, medicineId }),
+    });
+  }
+
+  static async createInvoice(data: any) {
+    return this.request<any>('/invoices', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

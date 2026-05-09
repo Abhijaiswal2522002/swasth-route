@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone, X } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone, X, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { QRCodeCanvas } from 'qrcode.react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { ApiClient } from '@/lib/api';
 
 interface Medicine {
   _id: string;
@@ -37,6 +38,10 @@ export default function BillingPage() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [generatedInvoice, setGeneratedInvoice] = useState<any>(null);
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [pharmacyName, setPharmacyName] = useState('Swasth Pharmacy');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'UPI'>('Cash');
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
@@ -54,8 +59,20 @@ export default function BillingPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Auto-detect IP on mount (only on localhost)
+  // Auto-detect IP on mount (only on localhost) and fetch pharmacy info
   useEffect(() => {
+    const fetchPharmacyInfo = async () => {
+      try {
+        const response = await ApiClient.getPharmacyProfile();
+        if (response.data) {
+          setPharmacyName((response.data as any).name);
+        }
+      } catch (error) {
+        console.error('Error fetching pharmacy profile:', error);
+      }
+    };
+    fetchPharmacyInfo();
+
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       return;
     }
@@ -119,7 +136,10 @@ export default function BillingPage() {
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.length >= 2) {
         try {
-          const response = await fetch(`/api/medicines?search=${searchQuery}`);
+          const token = localStorage.getItem('authToken');
+          const response = await fetch(`/api/invoices/search/inventory?query=${encodeURIComponent(searchQuery)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           const data = await response.json();
           setSearchResults(data);
         } catch (error) {
@@ -135,7 +155,7 @@ export default function BillingPage() {
 
   const addToCart = (medicine: Medicine, inventoryPrice?: number) => {
     const price = inventoryPrice || medicine.price || 0;
-    
+
     setCart(prevCart => {
       const existingItem = prevCart.find((item) => item.medicineId === medicine._id);
       if (existingItem) {
@@ -282,45 +302,46 @@ export default function BillingPage() {
       return;
     }
 
+    console.log('[v0] Starting generateInvoice...', { cartCount: cart.length, customerName, totalAmount });
     setIsProcessing(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${backendUrl}/api/invoices`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          customerName,
-          customerPhone,
-          items: cart,
-          subTotal,
-          tax,
-          discount: 0,
-          totalAmount,
-          paymentMethod: 'Cash',
-          paymentStatus: 'Paid',
-        }),
+      const response = await ApiClient.createInvoice({
+        customerName,
+        customerPhone,
+        items: cart,
+        subTotal,
+        tax,
+        discount: 0,
+        totalAmount,
+        paymentMethod,
+        paymentStatus: 'Paid',
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      console.log('[v0] API Response:', response);
+
+      if (response.data && response.data.invoice) {
+        console.log('[v0] Invoice created successfully:', response.data.invoice);
         toast.success('Invoice generated successfully!');
+        setGeneratedInvoice(response.data.invoice);
+        setIsSuccessDialogOpen(true);
         setCart([]);
         setCustomerName('');
         setCustomerPhone('');
-        // Optional: Trigger print view or redirect to invoice page
       } else {
-        const error = await response.json();
-        toast.error(error.error || 'Failed to generate invoice');
+        const errorMsg = response.error || 'Failed to generate invoice';
+        console.error('[v0] Invoice generation failed:', errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
+      console.error('[v0] Connection error:', error);
       toast.error('Error connecting to server');
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -460,25 +481,36 @@ export default function BillingPage() {
               </div>
 
               {searchResults.length > 0 && (
-                <div className="border rounded-md overflow-hidden bg-white shadow-sm absolute z-10 w-full mt-1 max-h-60 overflow-y-auto">
-                  {searchResults.map((med) => (
+                <div className="border rounded-xl overflow-hidden bg-white shadow-lg absolute z-10 w-full max-w-2xl mt-2 max-h-[400px] overflow-y-auto border-primary/10">
+                  {searchResults.map((med: any) => (
                     <div
                       key={med._id}
-                      className="p-3 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 cursor-pointer"
+                      className="mx-2 my-2 p-3 rounded-lg border border-gray-100 hover:border-primary/30 hover:bg-blue-50/30 flex justify-between items-center cursor-pointer group transition-all duration-200 shadow-sm hover:shadow-md"
                       onClick={() => {
-                        addToCart(med);
+                        addToCart({
+                          _id: med.medicineId,
+                          name: med.medicineName,
+                          price: med.price
+                        }, med.price);
                         setSearchQuery('');
+                        setSearchResults([]);
                       }}
                     >
-                      <div>
-                        <p className="font-medium">{med.name}</p>
-                        <p className="text-xs text-gray-500">{med.barcode || 'No barcode'}</p>
+                      <div className="flex-1 min-w-0 mr-6">
+                        <p className="font-bold text-gray-900 group-hover:text-primary transition-colors truncate text-sm" title={med.medicineName}>
+                          {med.medicineName}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-500 rounded border border-gray-100">
+                            Stock: {med.quantity}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="font-semibold text-primary">₹{med.price || 0}</span>
-                        <Button size="sm" variant="ghost">
-                          <Plus className="w-4 h-4" />
-                        </Button>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-bold text-green-600 text-sm">₹{med.price}</span>
+                        <div className="p-1.5 rounded-full bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                          <Plus className="w-3.5 h-3.5" />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -593,6 +625,23 @@ export default function BillingPage() {
                 <span>Tax (GST 12%)</span>
                 <span>₹{tax.toFixed(2)}</span>
               </div>
+
+              <div className="pt-2 space-y-2">
+                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Payment Method</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {['Cash', 'Card', 'UPI'].map((method) => (
+                    <Button
+                      key={method}
+                      variant={paymentMethod === method ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setPaymentMethod(method as any)}
+                    >
+                      {method}
+                    </Button>
+                  ))}
+                </div>
+              </div>
               <div className="border-t pt-4 flex justify-between font-bold text-lg">
                 <span>Total Amount</span>
                 <span className="text-primary">₹{totalAmount.toFixed(2)}</span>
@@ -605,7 +654,12 @@ export default function BillingPage() {
                 {isProcessing ? 'Processing...' : 'Generate Invoice'}
                 {!isProcessing && <Save className="w-5 h-5 ml-2" />}
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                onClick={handlePrint}
+                disabled={cart.length === 0 && !generatedInvoice}
+              >
                 <Printer className="w-4 h-4 mr-2" />
                 Print Bill
               </Button>
@@ -613,6 +667,110 @@ export default function BillingPage() {
           </Card>
         </div>
       </div>
+
+      {/* Success Dialog with Receipt */}
+      <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+              Invoice Generated
+            </DialogTitle>
+            <DialogDescription>
+              The invoice has been saved successfully. You can now print it for the customer.
+            </DialogDescription>
+          </DialogHeader>
+
+          {generatedInvoice && (
+            <div id="printable-invoice" className="p-6 border rounded-xl bg-white space-y-4">
+              <div className="text-center border-b pb-4">
+                <h2 className="text-xl font-bold uppercase tracking-wider">{pharmacyName}</h2>
+                <p className="text-xs text-gray-500">Invoice: {generatedInvoice.invoiceNumber}</p>
+                <p className="text-xs text-gray-500">{new Date(generatedInvoice.createdAt).toLocaleString()}</p>
+              </div>
+
+              <div className="grid grid-cols-2 text-sm gap-2">
+                <div>
+                  <p className="text-gray-500 text-[10px] uppercase font-bold">Customer</p>
+                  <p className="font-medium">{generatedInvoice.customerName || 'Walk-in Customer'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-gray-500 text-[10px] uppercase font-bold">Phone</p>
+                  <p className="font-medium">{generatedInvoice.customerPhone || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <div className="grid grid-cols-12 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b pb-1">
+                  <span className="col-span-6">Item</span>
+                  <span className="col-span-2 text-center">Qty</span>
+                  <span className="col-span-4 text-right">Total</span>
+                </div>
+                {generatedInvoice.items.map((item: any, idx: number) => (
+                  <div key={idx} className="grid grid-cols-12 text-sm">
+                    <span className="col-span-6 font-medium">{item.name}</span>
+                    <span className="col-span-2 text-center text-gray-500">x{item.quantity}</span>
+                    <span className="col-span-4 text-right font-bold">₹{item.total.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-4 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span>₹{generatedInvoice.subTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">GST (12%)</span>
+                  <span>₹{generatedInvoice.tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-black border-t pt-2 text-primary">
+                  <span>TOTAL</span>
+                  <span>₹{generatedInvoice.totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="text-center pt-4 border-t border-dashed">
+                <p className="text-[10px] text-gray-400">Thank you for choosing Swasth!</p>
+                <p className="text-[10px] text-gray-400 italic">Get well soon.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" className="flex-1" onClick={() => setIsSuccessDialogOpen(false)}>
+              Close
+            </Button>
+            <Button className="flex-1 gap-2" onClick={handlePrint}>
+              <Printer className="w-4 h-4" />
+              Print Receipt
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-invoice, #printable-invoice * {
+            visibility: visible;
+          }
+          #printable-invoice {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none;
+            padding: 0;
+            margin: 0;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

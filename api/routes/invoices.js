@@ -139,4 +139,27 @@ router.get('/barcode/:barcode', verifyToken, verifyPharmacy, async (req, res) =>
   }
 });
 
+// Search pharmacy's own inventory for billing
+router.get('/search/inventory', verifyToken, verifyPharmacy, async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+
+    const pharmacy = await Pharmacy.findById(req.user.id);
+    if (!pharmacy) {
+      return res.status(404).json({ error: 'Pharmacy not found' });
+    }
+
+    // Filter inventory by query (name or medicineId)
+    const results = pharmacy.inventory.filter(item => 
+      item.medicineName?.toLowerCase().includes(query.toLowerCase())
+    );
+
+    res.json(results.slice(0, 20)); // Limit to 20 results
+  } catch (error) {
+    console.error('Inventory search error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
