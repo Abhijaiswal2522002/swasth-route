@@ -1,7 +1,9 @@
 const API_URL = typeof window !== 'undefined' 
   ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'http://localhost:3001/api' 
-      : '/api')
+      : (process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost') 
+          ? process.env.NEXT_PUBLIC_API_URL 
+          : '/api'))
   : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api');
 
 interface ApiResponse<T> {
@@ -40,10 +42,13 @@ export async function login(email: string, password: string): Promise<AuthRespon
     });
 
     console.log('[v0] Login response status:', response.status);
-    const data = await response.json().catch(async () => {
-      const text = await response.text();
-      throw new Error(`Server returned HTML instead of JSON: ${text.slice(0, 50)}...`);
-    });
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Server returned non-JSON response: ${text.slice(0, 50)}...`);
+    }
 
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Login failed');
@@ -259,10 +264,13 @@ export class ApiClient {
       });
 
       console.log(`[v0] API Request: ${options.method || 'GET'} ${endpoint} - Status: ${response.status}`);
-      const data = await response.json().catch(async () => {
-        const text = await response.text();
-        throw new Error(`API returned HTML instead of JSON: ${text.slice(0, 50)}...`);
-      });
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        return { error: `API returned non-JSON response: ${text.slice(0, 50)}...` };
+      }
 
       if (!response.ok) {
         return { error: data.error || data.message || 'An error occurred' };
