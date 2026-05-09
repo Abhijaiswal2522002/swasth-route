@@ -180,24 +180,17 @@ export default function BillingPage() {
     console.log(`[Scanning] Barcode: ${barcode}`);
     try {
       const cleanBarcode = barcode.trim();
-      const token = localStorage.getItem('authToken');
-      const url = `/api/invoices/barcode/${encodeURIComponent(cleanBarcode)}`;
-      console.log(`[Scanning] Fetching from: ${url}`);
-      
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await ApiClient.getMedicineByBarcode(cleanBarcode);
 
-      if (response.ok) {
-        const { medicine, inventory } = await response.json();
+      if (response.data) {
+        const { medicine, inventory } = response.data;
         console.log(`[Scanning] Success: Found ${medicine.name}`);
         addToCart(medicine, inventory?.price);
         setIsScannerOpen(false);
         toast.success(`Scanned: ${medicine.name}`);
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.warn(`[Scanning] Not found or Error:`, errorData);
-        toast.error(errorData.error || 'Medicine not found with this barcode');
+        console.warn(`[Scanning] Not found or Error:`, response.error);
+        toast.error(response.error || 'Medicine not found with this barcode');
       }
     } catch (error) {
       console.error(`[Scanning] Error:`, error);

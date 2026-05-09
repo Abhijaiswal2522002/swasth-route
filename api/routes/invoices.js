@@ -111,12 +111,11 @@ router.get('/barcode/:barcode', verifyToken, verifyPharmacy, async (req, res) =>
       return res.status(404).json({ error: 'Medicine not found with this barcode' });
     }
 
-    // Also check if the pharmacy has it in stock
     const pharmacy = await Pharmacy.findById(req.user.id);
     const inventoryItem = pharmacy?.inventory.find(
-      (inv) => inv.medicineId.toString() === medicine._id.toString()
+      (inv) => inv.medicineId && inv.medicineId.toString() === medicine._id.toString()
     );
-
+    
     res.json({
       medicine,
       inventory: inventoryItem || null

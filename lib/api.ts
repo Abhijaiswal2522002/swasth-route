@@ -616,6 +616,10 @@ export class ApiClient {
     });
   }
 
+  static async getMedicineByBarcode(barcode: string) {
+    return this.request<any>(`/invoices/barcode/${encodeURIComponent(barcode)}`);
+  }
+
   static async updateInventory(medicineId: string, quantity: number, price?: number) {
     return this.request(`/pharmacies/inventory/${medicineId}`, {
       method: 'PUT',
