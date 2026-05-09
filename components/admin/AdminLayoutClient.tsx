@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import AdminSidebar from './AdminSidebar';
 
@@ -9,6 +10,7 @@ export default function AdminLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   
   // Hide sidebar on the auth page
   const isAuthPage = pathname?.includes('/admin/auth');
@@ -19,8 +21,8 @@ export default function AdminLayoutClient({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <AdminSidebar />
-      <main className="flex-1 lg:pl-72 flex flex-col overflow-x-hidden min-h-screen">
+      <AdminSidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+      <main className={`flex-1 ${isCollapsed ? 'lg:pl-20' : 'lg:pl-72'} flex flex-col overflow-x-hidden min-h-screen transition-all duration-500 ease-in-out`}>
         {/* Dynamic transition for children */}
         <div className="flex-1 transition-all duration-700">
           {children}

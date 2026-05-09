@@ -12,6 +12,8 @@ import HowItWorks from '@/components/HowItWorks';
 import ForPharmacies from '@/components/ForPharmacies';
 import TrustSection from '@/components/TrustSection';
 import PartnerLogos from '@/components/PartnerLogos';
+import PlatformShowcase from '@/components/PlatformShowcase';
+import LiveStatsTicker from '@/components/LiveStatsTicker';
 
 import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import { useAuth } from '@/lib/hooks/useAuth';
@@ -100,6 +102,8 @@ export default function HomePage() {
             <PartnerLogos />
             <HowItWorks />
             <FeaturesSection />
+            <PlatformShowcase />
+            <LiveStatsTicker />
             <TrustSection />
             <ForPharmacies />
           </>

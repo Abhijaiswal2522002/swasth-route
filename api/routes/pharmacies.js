@@ -126,7 +126,7 @@ router.put('/profile', verifyPharmacy, uploadPharmacy.fields([
 // Update inventory
 router.post('/inventory/add', verifyPharmacy, async (req, res) => {
   try {
-    const { medicineId, medicineName, quantity, price, reorderLevel } = req.body;
+    const { medicineId, medicineName, quantity, price, reorderLevel, batchNumber, expiryDate } = req.body;
     console.log('Adding medicine to inventory:', { medicineId, medicineName, quantity, price, reorderLevel });
 
     const pharmacy = await Pharmacy.findById(req.pharmacy.id);
@@ -135,32 +135,28 @@ router.post('/inventory/add', verifyPharmacy, async (req, res) => {
       return res.status(404).json({ error: 'Pharmacy not found' });
     }
 
-    // Try to find by medicineId first, then by name
-    let existingMedicine = null;
-    if (medicineId) {
-      existingMedicine = pharmacy.inventory.find(
-        med => med.medicineId?.toString() === medicineId
-      );
-    }
-
-    if (!existingMedicine) {
-      existingMedicine = pharmacy.inventory.find(
-        med => med.medicineName?.toLowerCase() === medicineName?.toLowerCase()
-      );
-    }
+    // Try to find exact batch (same name + same batch number)
+    let existingBatch = pharmacy.inventory.find(
+      inv => 
+        inv.medicineName?.toLowerCase() === medicineName?.toLowerCase() && 
+        inv.batchNumber === batchNumber
+    );
 
     const numQuantity = Number(quantity) || 0;
     const numPrice = Number(price) || 0;
     const numReorderLevel = Number(reorderLevel) || 10;
 
-    if (existingMedicine) {
-      existingMedicine.quantity += numQuantity;
-      existingMedicine.price = numPrice;
-      if (medicineId) existingMedicine.medicineId = medicineId;
+    if (existingBatch) {
+      existingBatch.quantity += numQuantity;
+      existingBatch.price = numPrice;
+      if (medicineId) existingBatch.medicineId = medicineId;
+      if (expiryDate) existingBatch.expiryDate = expiryDate;
     } else {
       pharmacy.inventory.push({
         medicineId,
         medicineName,
+        batchNumber,
+        expiryDate,
         quantity: numQuantity,
         price: numPrice,
         reorderLevel: numReorderLevel,
@@ -215,6 +211,43 @@ router.get('/orders/list', verifyPharmacy, async (req, res) => {
     const orders = await Order.find(query).sort({ createdAt: -1 }).populate('userId', 'name phone');
 
     res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get expiry analytics and alerts
+router.get('/expiry', verifyPharmacy, async (req, res) => {
+  try {
+    const pharmacy = await Pharmacy.findById(req.pharmacy.id);
+    if (!pharmacy) return res.status(404).json({ error: 'Pharmacy not found' });
+
+    const now = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(now.getDate() + 30);
+
+    const expired = [];
+    const nearExpiry = [];
+
+    pharmacy.inventory.forEach(item => {
+      if (!item.expiryDate) return;
+      
+      const expiry = new Date(item.expiryDate);
+      if (expiry < now) {
+        expired.push(item);
+      } else if (expiry < thirtyDaysFromNow) {
+        nearExpiry.push(item);
+      }
+    });
+
+    res.json({
+      expired,
+      nearExpiry,
+      summary: {
+        expiredCount: expired.length,
+        nearExpiryCount: nearExpiry.length
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -601,6 +601,10 @@ export class ApiClient {
     return this.request<any>('/pharmacies/analytics');
   }
 
+  static async getExpiryAlerts() {
+    return this.request<any>('/pharmacies/expiry');
+  }
+
   // Medicine catalog endpoints
   static async getMedicinesCatalog(search?: string, category?: string) {
     const params = new URLSearchParams();
@@ -616,10 +620,10 @@ export class ApiClient {
     });
   }
 
-  static async addMedicine(medicineName: string, quantity: number, price: number, reorderLevel: number, medicineId?: string) {
+  static async addMedicine(medicineName: string, quantity: number, price: number, reorderLevel: number, medicineId?: string, batchNumber?: string, expiryDate?: string) {
     return this.request('/pharmacies/inventory/add', {
       method: 'POST',
-      body: JSON.stringify({ medicineName, quantity, price, reorderLevel, medicineId }),
+      body: JSON.stringify({ medicineName, quantity, price, reorderLevel, medicineId, batchNumber, expiryDate }),
     });
   }
 
@@ -833,6 +837,56 @@ export class ApiClient {
     });
   }
 
+  // Supplier Management
+  static async getSuppliers() {
+    return this.request<any[]>('/suppliers');
+  }
+
+  static async createSupplier(data: any) {
+    return this.request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async updateSupplier(id: string, data: any) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async deleteSupplier(id: string) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Purchase Management
+  static async getPurchases(params?: { status?: string; supplierId?: string }) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<any[]>(`/purchases${query ? `?${query}` : ''}`);
+  }
+
+  static async createPurchaseOrder(data: any) {
+    return this.request('/purchases', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async receivePurchase(id: string) {
+    return this.request(`/purchases/${id}/receive`, {
+      method: 'POST',
+    });
+  }
+
+  static async recordPurchasePayment(id: string, amount: number) {
+    return this.request(`/purchases/${id}/payment`, {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+  }
 }
 
 export default ApiClient;

@@ -12,6 +12,8 @@ import cartRoutes from './routes/cart.js';
 import riderRoutes from './routes/rider.js';
 import medicineRequestRoutes from './routes/medicineRequests.js';
 import invoiceRoutes from './routes/invoices.js';
+import supplierRoutes from './routes/suppliers.js';
+import purchaseRoutes from './routes/purchases.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
@@ -80,6 +82,8 @@ app.use('/api/medicines', medicineRoutes);
 app.use('/api/medicine-requests', medicineRequestRoutes);
 app.use('/api/rider', riderRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/suppliers', supplierRoutes);
+app.use('/api/purchases', purchaseRoutes);
 
 import os from 'os';
 

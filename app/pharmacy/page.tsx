@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import {
   Building2, MapPin, CheckCircle2, AlertCircle,
-  Clock, Package, TrendingUp, ChevronRight, Check, X, RefreshCw
+  Clock, Package, TrendingUp, ChevronRight, Check, X, RefreshCw, CreditCard, ArrowUpRight
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -273,6 +273,38 @@ export default function PharmacyDashboard() {
                 <p className="text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">Life Time</p>
               </Card>
             </div>
+
+            {/* SUBSCRIPTION STATUS CARD */}
+            <Card className="rounded-[2rem] bg-slate-900 text-white p-8 overflow-hidden relative border-0 shadow-xl shadow-slate-200">
+               <div className="absolute -bottom-6 -right-6 opacity-10">
+                  <CreditCard className="w-24 h-24" />
+               </div>
+               <div className="relative z-10 space-y-6">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Membership</p>
+                        <h3 className="text-2xl font-black text-white italic">Standard <span className="text-teal-400">FREE</span></h3>
+                     </div>
+                     <Badge className="bg-white/10 text-white border-0 py-1.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest backdrop-blur-md">Tier 1</Badge>
+                  </div>
+                  
+                  <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                     <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Plat. Commission</span>
+                        <span className="text-sm font-black text-teal-400">10% per sale</span>
+                     </div>
+                     <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-teal-500 h-full w-[10%]" />
+                     </div>
+                  </div>
+
+                  <Link href="/pharmacy/subscription" className="block">
+                    <Button className="w-full bg-white text-slate-900 hover:bg-slate-200 rounded-xl h-12 font-black uppercase tracking-widest text-[10px] transition-all group">
+                       Lower your commission <ArrowUpRight className="w-4 h-4 ml-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </Button>
+                  </Link>
+               </div>
+            </Card>
 
             {/* ORDER HISTORY */}
             <Card className="rounded-[2rem] border-gray-100 shadow-sm overflow-hidden">

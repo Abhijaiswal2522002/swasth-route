@@ -52,9 +52,11 @@ const PharmacySchema = new mongoose.Schema(
       {
         medicineId: mongoose.Schema.Types.ObjectId,
         medicineName: String,
+        batchNumber: String,
+        expiryDate: Date,
         quantity: Number,
         price: Number,
-        reorderLevel: Number,
+        reorderLevel: { type: Number, default: 10 },
       },
     ],
     status: {

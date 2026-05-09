@@ -39,7 +39,9 @@ export default function PharmacyMedicinesPage() {
   const [addForm, setAddForm] = useState({
     quantity: 0,
     price: 0,
-    reorderLevel: 10
+    reorderLevel: 10,
+    batchNumber: '',
+    expiryDate: ''
   });
 
   // Create New Medicine State
@@ -195,7 +197,9 @@ export default function PharmacyMedicinesPage() {
         addForm.quantity,
         addForm.price,
         addForm.reorderLevel,
-        selectedMedicine._id
+        selectedMedicine._id,
+        addForm.batchNumber,
+        addForm.expiryDate
       );
 
       if (!res.error) {
@@ -228,7 +232,9 @@ export default function PharmacyMedicinesPage() {
         addForm.quantity,
         addForm.price,
         addForm.reorderLevel,
-        createdMedicine?._id
+        createdMedicine?._id,
+        addForm.batchNumber,
+        addForm.expiryDate
       );
 
       if (!res.error) {
@@ -262,7 +268,7 @@ export default function PharmacyMedicinesPage() {
     setCatalogSearch('');
     setCatalogResults([]);
     setShowCreateForm(false);
-    setAddForm({ quantity: 0, price: 0, reorderLevel: 10 });
+    setAddForm({ quantity: 0, price: 0, reorderLevel: 10, batchNumber: '', expiryDate: '' });
     setNewMedicine({
       name: '',
       manufacturer: '',
@@ -497,6 +503,27 @@ export default function PharmacyMedicinesPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-black text-[10px] uppercase tracking-widest text-gray-400">Batch Number</Label>
+                    <Input
+                      placeholder="e.g. BT102"
+                      className="rounded-xl font-bold"
+                      value={addForm.batchNumber}
+                      onChange={(e) => setAddForm({ ...addForm, batchNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-black text-[10px] uppercase tracking-widest text-gray-400">Expiry Date</Label>
+                    <Input
+                      type="date"
+                      className="rounded-xl font-bold"
+                      value={addForm.expiryDate}
+                      onChange={(e) => setAddForm({ ...addForm, expiryDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="reorder" className="font-black text-[10px] uppercase tracking-widest text-gray-400">Low Stock Alert Level</Label>
                   <Input
@@ -556,6 +583,27 @@ export default function PharmacyMedicinesPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-gray-400">Batch Number</Label>
+                    <Input
+                      value={addForm.batchNumber}
+                      onChange={(e) => setAddForm({ ...addForm, batchNumber: e.target.value })}
+                      className="rounded-lg font-bold"
+                      placeholder="e.g. BT102"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase text-gray-400">Expiry Date</Label>
+                    <Input
+                      type="date"
+                      value={addForm.expiryDate}
+                      onChange={(e) => setAddForm({ ...addForm, expiryDate: e.target.value })}
+                      className="rounded-lg font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="space-y-1">
                     <Label className="text-[10px] font-black uppercase text-gray-400">Initial Stock</Label>
                     <Input
