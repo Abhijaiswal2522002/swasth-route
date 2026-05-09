@@ -93,29 +93,43 @@ router.post('/', verifyToken, verifyPharmacy, async (req, res) => {
 router.get('/barcode/:barcode', verifyToken, verifyPharmacy, async (req, res) => {
   try {
     const { barcode } = req.params;
-    console.log(`[Barcode Search] Looking for barcode: "${barcode}"`);
-    // More robust barcode search: exact match, partial match, or fallback to name (for old records)
+    const cleanBarcode = barcode.trim();
+    const barcodeWithoutZeros = cleanBarcode.replace(/^0+/, '');
+    console.log(`[Barcode Search] Searching for: "${cleanBarcode}" (or "${barcodeWithoutZeros}")`);
+
+    // More robust barcode search: exact match, trimmed, without leading zeros, or fallback to name
     const medicine = await Medicine.findOne({ 
       $or: [
-        { barcode: barcode },
-        { barcode: barcode.trim() },
-        { name: barcode },
-        { name: barcode.trim() },
-        { barcode: { $regex: barcode, $options: 'i' } }
+        { barcode: cleanBarcode },
+        { barcode: barcodeWithoutZeros },
+        { name: cleanBarcode },
+        { name: barcodeWithoutZeros },
+        { barcode: { $regex: cleanBarcode, $options: 'i' } }
       ],
       status: 'active' 
     });
-    console.log(`[Barcode Search] Found medicine: ${medicine ? medicine.name : 'NONE'}`);
-    
+
     if (!medicine) {
+      console.log(`[Barcode Search] No medicine found in catalog for barcode: ${cleanBarcode}`);
       return res.status(404).json({ error: 'Medicine not found with this barcode' });
     }
 
+    console.log(`[Barcode Search] Found medicine: ${medicine.name} (ID: ${medicine._id})`);
+    
     const pharmacy = await Pharmacy.findById(req.user.id);
-    const inventoryItem = pharmacy?.inventory.find(
+    if (!pharmacy) {
+      console.error(`[Barcode Search] Pharmacy not found for ID: ${req.user.id}`);
+      return res.status(404).json({ error: 'Pharmacy profile not found' });
+    }
+
+    const inventoryItem = pharmacy.inventory.find(
       (inv) => inv.medicineId && inv.medicineId.toString() === medicine._id.toString()
     );
     
+    if (!inventoryItem) {
+      console.log(`[Barcode Search] Medicine found in catalog but NOT in pharmacy inventory: ${medicine.name}`);
+    }
+
     res.json({
       medicine,
       inventory: inventoryItem || null
