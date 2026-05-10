@@ -7,7 +7,7 @@ import { Mail, Phone, MapPin, Github, Twitter, Instagram } from 'lucide-react';
 export default function Footer() {
   const pathname = usePathname();
 
-  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy') || pathname?.startsWith('/rider')) {
+  if (pathname?.startsWith('/app') || pathname?.startsWith('/admin') || pathname?.startsWith('/pharmacy') || pathname?.startsWith('/rider') || pathname?.startsWith('/auth')) {
     return null;
   }
 
@@ -16,8 +16,8 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div className="space-y-6">
-            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              SwasthRoute
+            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent lowercase">
+              swasthroute
             </Link>
             <p className="text-muted-foreground leading-relaxed">
               India's fastest emergency medicine delivery network. Saving lives, one delivery at a time.
@@ -75,8 +75,8 @@ export default function Footer() {
         </div>
 
         <div className="pt-8 border-t border-primary/5 text-center">
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
-            © {new Date().getFullYear()} SwasthRoute. All rights reserved.
+          <p className="text-muted-foreground text-[10px] font-medium lowercase tracking-widest">
+            © {new Date().getFullYear()} swasthroute. all rights reserved.
           </p>
         </div>
       </div>

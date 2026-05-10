@@ -82,16 +82,18 @@ export default function DeliveryShowcase() {
                    </div>
                    
                    <div className="relative z-10 text-center space-y-8">
-                      <img 
-                        src="/OIP.webp" 
-                        alt="Safe Delivery" 
-                        className="w-full h-auto rounded-2xl shadow-lg transform group-hover:scale-105 transition-transform duration-700" 
-                      />
+                      <div className="max-w-[280px] mx-auto relative rounded-[3rem] border-[12px] border-slate-900 shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] overflow-hidden bg-slate-900 group-hover:rotate-[-2deg] transition-all duration-700">
+                         <img 
+                           src="/phone.png" 
+                           alt="Mobile App Interface" 
+                           className="w-full h-auto" 
+                         />
+                      </div>
                       
                       <div className="space-y-4">
                          <h3 className="text-2xl font-black text-gray-900">Safety First Protocol</h3>
                          <p className="text-sm text-gray-500 font-medium max-w-sm mx-auto">
-                            Our "Safe Delivery" initiative ensures all riders are background-verified and trained for medical handling.
+                            Our "Safe Delivery" initiative ensures all riders are background-verified and trained for medical handling through our specialized mobile app.
                          </p>
                       </div>
                    </div>

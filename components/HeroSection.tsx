@@ -95,6 +95,15 @@ export default function HeroSection() {
               />
             </div>
 
+            {/* Floating Phone App Preview */}
+            <div className="absolute -bottom-10 -right-10 w-1/3 z-20 rounded-[2rem] overflow-hidden border-4 border-white shadow-2xl rotate-[5deg] hover:rotate-0 transition-all duration-700 hidden sm:block">
+              <img
+                src="/phone.png"
+                alt="SwasthRoute Mobile App"
+                className="w-full h-auto"
+              />
+            </div>
+
             {/* Decorative Background Elements */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -z-10" />
             <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-blue-500/10 rounded-full blur-[120px] -z-10" />

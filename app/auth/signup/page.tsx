@@ -9,18 +9,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { getCaptcha, CaptchaData } from '@/lib/api';
-import { useEffect } from 'react';
-import { RefreshCcw, MapPin, Loader2, Bike } from 'lucide-react';
+import { useEffect, Suspense } from 'react';
+import { RefreshCcw, MapPin, Loader2, Bike, User, Phone, Mail, Lock, Shield, ArrowRight, Building2, CheckCircle2 } from 'lucide-react';
 import { reverseGeocode } from '@/lib/locationUtils';
+import { useSearchParams } from 'next/navigation';
 
 import GuestRoute from '@/components/auth/GuestRoute';
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signup, pharmacySignup, riderSignup, loading, error, clearError } = useAuth();
   const { location: geoPerm, loading: geoLoading, error: geoError } = useGeolocation();
-  const [step, setStep] = useState<'selection' | 'form'>('selection');
-  const [role, setRole] = useState<'user' | 'pharmacy' | 'rider'>('user');
+  
+  // Initialize role and step from URL if present
+  const urlRole = searchParams.get('role');
+  const [step, setStep] = useState<'selection' | 'form'>(urlRole ? 'form' : 'selection');
+  const [role, setRole] = useState<'user' | 'pharmacy' | 'rider'>((urlRole as any) || 'user');
   const [isDetectingAddress, setIsDetectingAddress] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -178,385 +183,413 @@ export default function SignupPage() {
   const renderContent = () => {
     if (step === 'selection') {
       return (
-        <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
-          <div className="p-8 space-y-8">
-            <div className="space-y-2 text-center">
-              <div className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                SwasthRoute
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Card className="backdrop-blur-xl border-white/10 bg-white/5 shadow-2xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+            <div className="p-8 space-y-8">
+              <div className="space-y-3 text-center">
+
+                <h1 className="text-3xl font-black tracking-tight text-black">
+                  Create <span className="text-primary">Account.</span>
+                </h1>
+                <p className="text-slate-400 text-sm font-medium">Select your role to get started</p>
               </div>
-              <p className="text-muted-foreground text-sm">Choose your account type</p>
+
+              <div className="grid grid-cols-1 gap-4">
+                {[
+                  { id: 'user', title: 'Customer', desc: 'Order medicines & find pharmacies', icon: User, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                  { id: 'pharmacy', title: 'Pharmacy', desc: 'Register store & fulfill orders', icon: Building2, color: 'text-primary', bg: 'bg-primary/10' },
+                  { id: 'rider', title: 'Delivery Rider', desc: 'Join fleet & start earning', icon: Bike, color: 'text-orange-500', bg: 'bg-orange-500/10' }
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setRole(r.id as any);
+                      setStep('form');
+                      router.push(`/auth/signup?role=${r.id}`);
+                    }}
+                    className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all group text-left"
+                  >
+                    <div className={`w-12 h-12 rounded-xl ${r.bg} ${r.color} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
+                      <r.icon className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-black group-hover:text-primary transition-colors">{r.title}</h4>
+                      <p className="text-xs text-slate-500 font-medium">{r.desc}</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-slate-700 group-hover:text-primary transition-all group-hover:translate-x-1" />
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-4 text-center">
+                <p className="text-sm text-slate-500 font-medium">
+                  Already have an account?{' '}
+                  <Link href="/auth/login" className="text-primary hover:underline font-bold">
+                    Log In
+                  </Link>
+                </p>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <Button
-                onClick={() => {
-                  setRole('user');
-                  setStep('form');
-                }}
-                variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 group transition-all"
-              >
-                <span className="text-lg font-bold group-hover:text-primary">Customer</span>
-                <span className="text-xs text-muted-foreground text-center line-clamp-2 px-2">
-                  Order emergency medicines and discover nearby pharmacies
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setRole('pharmacy');
-                  setStep('form');
-                }}
-                variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 group transition-all"
-              >
-                <span className="text-lg font-bold group-hover:text-primary">Pharmacy</span>
-                <span className="text-xs text-muted-foreground text-center line-clamp-2 px-2">
-                  Register your store to fulfill emergency medicine requests
-                </span>
-              </Button>
-
-              <Button
-                onClick={() => {
-                  setRole('rider');
-                  setStep('form');
-                }}
-                variant="outline"
-                className="h-24 flex flex-col items-center justify-center gap-2 border-primary/20 hover:border-primary hover:bg-primary/5 group transition-all"
-              >
-                <span className="text-lg font-bold group-hover:text-primary">Delivery Rider</span>
-                <span className="text-xs text-muted-foreground text-center line-clamp-2 px-2">
-                  Join our delivery fleet and earn on every medicine delivery
-                </span>
-              </Button>
-            </div>
-
-            <div className="pt-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/auth/login" className="text-primary hover:underline font-medium">
-                  Log In
-                </Link>
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       );
     }
 
     return (
-      <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
-        <div className="p-8 space-y-8">
-          <div className="space-y-2 text-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStep('selection')}
-              className="absolute left-4 top-4 text-muted-foreground hover:text-primary"
-            >
-              ← Back
-            </Button>
-            <div className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              {role === 'user' ? 'Customer' : role === 'pharmacy' ? 'Pharmacy' : 'Rider'} Sign Up
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {role === 'user'
-                ? 'Join SwasthRoute for fast medicine delivery'
-                : role === 'pharmacy'
-                  ? 'Register your pharmacy with the platform'
-                  : 'Join as a delivery partner and start earning'}
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                {role === 'user' ? 'Full Name' : 'Pharmacy Name'} *
-              </label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder={role === 'user' ? 'John Doe' : role === 'pharmacy' ? 'LifeCare Pharmacy' : 'Alex Rider'}
-                value={formData.name}
-                onChange={handleChange}
-                disabled={loading}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <Card className="backdrop-blur-xl border-white/10 bg-white/5 shadow-2xl overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
+          <div className="p-8 space-y-8">
+            <div className="space-y-2 text-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStep('selection');
+                  router.push('/auth/signup');
+                }}
+                className="absolute left-4 top-4 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-full"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180" />
+              </Button>
+              <h2 className="text-3xl font-black text-black">
+                {role === 'user' ? 'Customer' : role === 'pharmacy' ? 'Pharmacy' : 'Rider'} <span className="text-primary">Sign Up</span>
+              </h2>
+              <p className="text-slate-400 text-sm font-medium">
+                {role === 'user'
+                  ? 'Join SwasthRoute for fast medicine delivery'
+                  : role === 'pharmacy'
+                    ? 'Register your pharmacy with the platform'
+                    : 'Join as a delivery partner and start earning'}
+              </p>
             </div>
 
-            {role === 'rider' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="vehicleType" className="text-sm font-medium">Vehicle Type *</label>
-                  <select
-                    id="vehicleType"
-                    name="vehicleType"
-                    value={formData.vehicleType}
-                    onChange={(e) => setFormData(p => ({ ...p, vehicleType: e.target.value }))}
-                    className="w-full h-10 px-3 bg-input/50 border border-primary/20 rounded-md focus:border-primary outline-none text-sm"
-                  >
-                    <option value="bike">Bike</option>
-                    <option value="scooter">Scooter</option>
-                    <option value="bicycle">Bicycle</option>
-                    <option value="car">Car</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="vehicleNumber" className="text-sm font-medium">License Plate *</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-bold text-slate-300 ml-1">
+                  {role === 'user' ? 'Full Name' : 'Pharmacy Name'} *
+                </label>
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
                   <Input
-                    id="vehicleNumber"
-                    name="vehicleNumber"
-                    placeholder="MH 01 AB 1234"
-                    value={formData.vehicleNumber}
+                    id="name"
+                    name="name"
+                    type="text"
+                    placeholder={role === 'user' ? 'John Doe' : role === 'pharmacy' ? 'LifeCare Pharmacy' : 'Alex Rider'}
+                    value={formData.name}
                     onChange={handleChange}
-                    className="bg-input/50 border-primary/20 focus:border-primary"
+                    disabled={loading}
+                    className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
                   />
                 </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <label htmlFor="phone" className="text-sm font-medium">
-                Phone Number *
-              </label>
-              <div className="flex gap-2">
-                <div className="flex items-center px-3 bg-input/50 border border-primary/20 rounded-md text-muted-foreground text-sm">
-                  +91
-                </div>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="9876543210"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={loading}
-                  maxLength={10}
-                  className="bg-input/50 border-primary/20 focus:border-primary"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email Address *
-              </label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder={role === 'user' ? 'john@example.com' : 'pharmacy@example.com'}
-                value={formData.email}
-                onChange={handleChange}
-                disabled={loading}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-            </div>
-
-            {role === 'pharmacy' && (
-              <>
-                <div className="space-y-2">
-                  <label htmlFor="address" className="text-sm font-medium">
-                    Pharmacy Address *
-                  </label>
-                  <Input
-                    id="address"
-                    name="address"
-                    type="text"
-                    placeholder="Complete pharmacy address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    disabled={loading}
-                    className="bg-input/50 border-primary/20 focus:border-primary"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="city" className="text-sm font-medium">
-                    City *
-                  </label>
-                  <Input
-                    id="city"
-                    name="city"
-                    type="text"
-                    placeholder="City name"
-                    value={formData.city}
-                    onChange={handleChange}
-                    disabled={loading}
-                    className="bg-input/50 border-primary/20 focus:border-primary"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="licenseNumber" className="text-sm font-medium">
-                    Pharmacy License Number *
-                  </label>
-                  <Input
-                    id="licenseNumber"
-                    name="licenseNumber"
-                    type="text"
-                    placeholder="e.g. LIC-12345678"
-                    value={formData.licenseNumber}
-                    onChange={handleChange}
-                    disabled={loading}
-                    className="bg-input/50 border-primary/20 focus:border-primary"
-                  />
-                </div>
-
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${geoPerm ? 'bg-green-500' : geoError ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`} />
-                      Location Status
-                    </span>
-                    <span className={geoPerm ? 'text-green-600' : geoError ? 'text-red-500' : 'text-yellow-600'}>
-                      {geoPerm ? 'Detected' : geoError ? 'Failed' : geoLoading ? 'Finding...' : 'Waiting...'}
-                    </span>
+              {role === 'rider' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="vehicleType" className="text-sm font-medium">Vehicle Type *</label>
+                    <select
+                      id="vehicleType"
+                      name="vehicleType"
+                      value={formData.vehicleType}
+                      onChange={(e) => setFormData(p => ({ ...p, vehicleType: e.target.value }))}
+                      className="w-full h-10 px-3 bg-input/50 border border-primary/20 rounded-md focus:border-primary outline-none text-sm"
+                    >
+                      <option value="bike">Bike</option>
+                      <option value="scooter">Scooter</option>
+                      <option value="bicycle">Bicycle</option>
+                      <option value="car">Car</option>
+                    </select>
                   </div>
-                  {geoPerm && (
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[10px] text-muted-foreground truncate flex-1">
-                        Lat: {geoPerm.latitude.toFixed(4)}, Lng: {geoPerm.longitude.toFixed(4)}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          setIsDetectingAddress(true);
-                          try {
-                            const addressData = await reverseGeocode(geoPerm.latitude, geoPerm.longitude);
-                            if (addressData) {
-                              setFormData(prev => ({
-                                ...prev,
-                                address: addressData.fullAddress,
-                                city: addressData.city || prev.city
-                              }));
-                            }
-                          } catch (err) {
-                            console.error('Failed to detect address:', err);
-                          } finally {
-                            setIsDetectingAddress(false);
-                          }
-                        }}
-                        disabled={isDetectingAddress}
-                        className="h-7 px-2 text-[10px] gap-1 rounded-md border-primary/20 hover:bg-primary/10"
-                      >
-                        {isDetectingAddress ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <MapPin className="w-3 h-3" />
-                        )}
-                        Detect Address
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="captcha" className="text-sm font-medium">
-                    Security Check *
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="flex-1 flex items-center justify-between px-3 bg-primary/5 border border-primary/20 rounded-md text-sm">
-                      <span className="font-medium text-primary">
-                        {captcha ? captcha.question : 'Loading...'}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={fetchCaptcha}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
-                      >
-                        <RefreshCcw className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <div className="space-y-2">
+                    <label htmlFor="vehicleNumber" className="text-sm font-medium">License Plate *</label>
                     <Input
-                      id="captcha"
-                      type="text"
-                      placeholder="Answer"
-                      value={captchaInput}
-                      onChange={(e) => setCaptchaInput(e.target.value)}
-                      disabled={loading}
-                      className="w-24 bg-input/50 border-primary/20 focus:border-primary"
+                      id="vehicleNumber"
+                      name="vehicleNumber"
+                      placeholder="MH 01 AB 1234"
+                      value={formData.vehicleNumber}
+                      onChange={handleChange}
+                      className="bg-input/50 border-primary/20 focus:border-primary"
                     />
                   </div>
                 </div>
-              </>
-            )}
+              )}
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password *
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={handleChange}
-                disabled={loading}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirm Password *
-              </label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                disabled={loading}
-                className="bg-input/50 border-primary/20 focus:border-primary"
-              />
-            </div>
-
-            {(localError || error) && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                {localError || error}
+              <div className="space-y-2">
+                <label htmlFor="phone" className="text-sm font-bold text-slate-300 ml-1">
+                  Phone Number *
+                </label>
+                <div className="relative group">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors z-10" />
+                  <div className="absolute left-12 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold z-10">
+                    +91
+                  </div>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    disabled={loading}
+                    maxLength={10}
+                    className="pl-20 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
+                  />
+                </div>
               </div>
-            )}
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300"
-            >
-              {loading ? 'Creating Account...' : 'Sign Up'}
-            </Button>
-          </form>
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-bold text-slate-300 ml-1">
+                  Email Address *
+                </label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder={role === 'user' ? 'john@example.com' : 'pharmacy@example.com'}
+                    value={formData.email}
+                    onChange={handleChange}
+                    disabled={loading}
+                    className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
+                  />
+                </div>
+              </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-primary/10" />
+              {role === 'pharmacy' && (
+                <>
+                  <div className="space-y-2">
+                    <label htmlFor="address" className="text-sm font-bold text-slate-300 ml-1">
+                      Pharmacy Address *
+                    </label>
+                    <div className="relative group">
+                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="address"
+                        name="address"
+                        type="text"
+                        placeholder="Complete pharmacy address"
+                        value={formData.address}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-white placeholder:text-slate-600 rounded-xl transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="city" className="text-sm font-bold text-slate-300 ml-1">
+                      City *
+                    </label>
+                    <div className="relative group">
+                      <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="city"
+                        name="city"
+                        type="text"
+                        placeholder="City name"
+                        value={formData.city}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-white placeholder:text-slate-600 rounded-xl transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="licenseNumber" className="text-sm font-bold text-slate-300 ml-1">
+                      Pharmacy License Number *
+                    </label>
+                    <div className="relative group">
+                      <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                      <Input
+                        id="licenseNumber"
+                        name="licenseNumber"
+                        type="text"
+                        placeholder="e.g. LIC-12345678"
+                        value={formData.licenseNumber}
+                        onChange={handleChange}
+                        disabled={loading}
+                        className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-white placeholder:text-slate-600 rounded-xl transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
+                      <span className="text-slate-500 flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${geoPerm ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : geoError ? 'bg-red-500' : 'bg-amber-500 animate-pulse'}`} />
+                        Location Status
+                      </span>
+                      <span className={geoPerm ? 'text-green-500' : geoError ? 'text-red-500' : 'text-amber-500'}>
+                        {geoPerm ? 'Verified' : geoError ? 'Permission Denied' : geoLoading ? 'Detecting...' : 'Pending'}
+                      </span>
+                    </div>
+                    {geoPerm && (
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-[10px] text-slate-500 font-mono truncate">
+                          GPS: {geoPerm.latitude.toFixed(6)}, {geoPerm.longitude.toFixed(6)}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={async () => {
+                            setIsDetectingAddress(true);
+                            try {
+                              const addressData = await reverseGeocode(geoPerm.latitude, geoPerm.longitude);
+                              if (addressData) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  address: addressData.fullAddress,
+                                  city: addressData.city || prev.city
+                                }));
+                              }
+                            } catch (err) {
+                              console.error('Failed to detect address:', err);
+                            } finally {
+                              setIsDetectingAddress(false);
+                            }
+                          }}
+                          disabled={isDetectingAddress}
+                          className="h-8 px-3 text-[10px] font-black uppercase tracking-widest gap-2 bg-primary/10 hover:bg-primary/20 text-primary border-none rounded-lg"
+                        >
+                          {isDetectingAddress ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <RefreshCcw className="w-3 h-3" />
+                          )}
+                          Auto-Fill
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="captcha" className="text-sm font-bold text-slate-300 ml-1">
+                      Security Check *
+                    </label>
+                    <div className="flex gap-3">
+                      <div className="flex-1 flex items-center justify-between px-4 h-14 bg-white/5 border border-white/10 rounded-xl text-sm">
+                        <span className="font-black text-primary tracking-widest text-lg italic">
+                          {captcha ? captcha.question : '...'}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchCaptcha}
+                          className="h-8 w-8 p-0 text-slate-500 hover:text-primary rounded-full"
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Input
+                        id="captcha"
+                        type="text"
+                        placeholder="?"
+                        value={captchaInput}
+                        onChange={(e) => setCaptchaInput(e.target.value)}
+                        disabled={loading}
+                        className="w-24 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black text-center font-bold text-lg rounded-xl transition-all"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-bold text-slate-300 ml-1">
+                  Password *
+                </label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleChange}
+                    disabled={loading}
+                    className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="text-sm font-medium">
+                  Confirm Password *
+                </label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  disabled={loading}
+                  className="bg-input/50 border-primary/20 focus:border-primary"
+                />
+              </div>
+
+              {(localError || error) && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  {localError || error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-14 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:-translate-y-0.5 active:translate-y-0 mt-4"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating Account...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    Sign Up <ArrowRight className="w-5 h-5" />
+                  </div>
+                )}
+              </Button>
+            </form>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/5" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase font-black tracking-widest text-slate-600">
+                <span className="px-4 shadow-sm">Already have an account?</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="px-2 bg-card/80 text-muted-foreground">Already have an account?</span>
-            </div>
+
+            <Link href="/auth/login">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-14 rounded-xl border-black/10 hover:bg-primary text-black font-bold transition-all"
+              >
+                Log In to Account
+              </Button>
+            </Link>
           </div>
-
-          <Link href="/auth/login">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-primary/20 hover:bg-primary/5 hover:border-primary/40"
-            >
-              Log In
-            </Button>
-          </Link>
-        </div>
-      </Card>
+        </Card>
+      </div>
     );
   };
 
   return <GuestRoute>{renderContent()}</GuestRoute>;
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <SignupContent />
+    </Suspense>
+  );
 }
