@@ -108,7 +108,7 @@ function LoginContent() {
                   value={formData.email}
                   onChange={handleChange}
                   disabled={loading}
-                  className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-white placeholder:text-slate-600 rounded-xl transition-all"
+                  className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
                 />
               </div>
             </div>

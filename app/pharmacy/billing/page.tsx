@@ -49,6 +49,76 @@ export default function BillingPage() {
   const [customIp, setCustomIp] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
+  const addToCart = React.useCallback((medicine: Medicine, inventoryPrice?: number) => {
+    const price = inventoryPrice || medicine.price || 0;
+
+    setCart(prevCart => {
+      const existingItem = prevCart.find((item) => item.medicineId === medicine._id);
+      if (existingItem) {
+        return prevCart.map((item) =>
+          item.medicineId === medicine._id
+            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * price }
+            : item
+        );
+      } else {
+        return [
+          ...prevCart,
+          {
+            medicineId: medicine._id,
+            name: medicine.name,
+            quantity: 1,
+            price: price,
+            total: price,
+          },
+        ];
+      }
+    });
+    toast.success(`${medicine.name} added to cart`);
+  }, []);
+
+  const handleBarcodeScan = React.useCallback(async (barcode: string) => {
+    console.log(`[Scanning] Barcode received: ${barcode}`);
+    if (!barcode) return;
+
+    try {
+      const cleanBarcode = barcode.trim();
+      if (!cleanBarcode) return;
+
+      const response = await ApiClient.getMedicineByBarcode(cleanBarcode);
+
+      if (response.data) {
+        const { medicine, inventory } = response.data;
+        console.log(`[Scanning] Success: Found ${medicine.name}`);
+        addToCart(medicine, inventory?.price);
+        setIsScannerOpen(false);
+        setIsMobileScannerOpen(false); // Also close mobile scanner dialog
+        toast.success(`Scanned: ${medicine.name}`);
+      } else {
+        console.warn(`[Scanning] Not found:`, response.error);
+        toast.error(response.error || 'Medicine not found with this barcode');
+      }
+    } catch (error) {
+      console.error(`[Scanning] Error:`, error);
+      toast.error('Error scanning barcode');
+    }
+  }, [addToCart]);
+
+  const updateQuantity = (medicineId: string, delta: number) => {
+    setCart(
+      cart.map((item) => {
+        if (item.medicineId === medicineId) {
+          const newQty = Math.max(1, item.quantity + delta);
+          return { ...item, quantity: newQty, total: newQty * item.price };
+        }
+        return item;
+      })
+    );
+  };
+
+  const removeFromCart = (medicineId: string) => {
+    setCart(cart.filter((item) => item.medicineId !== medicineId));
+  };
+
   // Device detection
   useEffect(() => {
     const checkMobile = () => {
@@ -129,18 +199,18 @@ export default function BillingPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [barcodeBuffer, lastKeyTime]);
+  }, [barcodeBuffer, lastKeyTime, handleBarcodeScan]);
 
   // Manual search
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       if (searchQuery.length >= 2) {
-          const response = await ApiClient.searchInventory(searchQuery);
-          if (response.data) {
-            setSearchResults(response.data);
-          } else {
-            console.error('Search error:', response.error);
-          }
+        const response = await ApiClient.searchInventory(searchQuery);
+        if (response.data) {
+          setSearchResults(response.data);
+        } else {
+          console.error('Search error:', response.error);
+        }
       } else {
         setSearchResults([]);
       }
@@ -149,70 +219,7 @@ export default function BillingPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const addToCart = (medicine: Medicine, inventoryPrice?: number) => {
-    const price = inventoryPrice || medicine.price || 0;
 
-    setCart(prevCart => {
-      const existingItem = prevCart.find((item) => item.medicineId === medicine._id);
-      if (existingItem) {
-        return prevCart.map((item) =>
-          item.medicineId === medicine._id
-            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * price }
-            : item
-        );
-      } else {
-        return [
-          ...prevCart,
-          {
-            medicineId: medicine._id,
-            name: medicine.name,
-            quantity: 1,
-            price: price,
-            total: price,
-          },
-        ];
-      }
-    });
-    toast.success(`${medicine.name} added to cart`);
-  };
-
-  const updateQuantity = (medicineId: string, delta: number) => {
-    setCart(
-      cart.map((item) => {
-        if (item.medicineId === medicineId) {
-          const newQty = Math.max(1, item.quantity + delta);
-          return { ...item, quantity: newQty, total: newQty * item.price };
-        }
-        return item;
-      })
-    );
-  };
-
-  const removeFromCart = (medicineId: string) => {
-    setCart(cart.filter((item) => item.medicineId !== medicineId));
-  };
-
-  const handleBarcodeScan = React.useCallback(async (barcode: string) => {
-    console.log(`[Scanning] Barcode: ${barcode}`);
-    try {
-      const cleanBarcode = barcode.trim();
-      const response = await ApiClient.getMedicineByBarcode(cleanBarcode);
-
-      if (response.data) {
-        const { medicine, inventory } = response.data;
-        console.log(`[Scanning] Success: Found ${medicine.name}`);
-        addToCart(medicine, inventory?.price);
-        setIsScannerOpen(false);
-        toast.success(`Scanned: ${medicine.name}`);
-      } else {
-        console.warn(`[Scanning] Not found or Error:`, response.error);
-        toast.error(response.error || 'Medicine not found with this barcode');
-      }
-    } catch (error) {
-      console.error(`[Scanning] Error:`, error);
-      toast.error('Error scanning barcode');
-    }
-  }, []); // Added cart as dependency since addToCart depends on it
 
   // Mobile Scanner Setup
   const [isSocketConnected, setIsSocketConnected] = useState(false);
