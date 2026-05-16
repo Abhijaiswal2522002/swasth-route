@@ -13,6 +13,8 @@ export default function EarningsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastWeekIncome, setLastWeekIncome] = useState(0);
+  const [weeklyChartData, setWeeklyChartData] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -54,11 +56,59 @@ export default function EarningsPage() {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       setRecentOrders(combined.slice(0, 15));
+
+      // Calculate Last 7 Days Income
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      weekAgo.setHours(0, 0, 0, 0);
+
+      const last7Days = combined.filter(item => new Date(item.createdAt) >= weekAgo);
+      const weekTotal = last7Days.reduce((sum, item) => sum + item.total, 0);
+      setLastWeekIncome(weekTotal);
+
+      // Generate Chart Data for CURRENT week (Mon-Sun)
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const currentWeekData = [
+        { name: 'Mon', revenue: 0 },
+        { name: 'Tue', revenue: 0 },
+        { name: 'Wed', revenue: 0 },
+        { name: 'Thu', revenue: 0 },
+        { name: 'Fri', revenue: 0 },
+        { name: 'Sat', revenue: 0 },
+        { name: 'Sun', revenue: 0 },
+      ];
+
+      // Get Monday of current week
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0 is Sun, 1 is Mon
+      const diffToMonday = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const startOfWeek = new Date(today.setDate(diffToMonday));
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      combined.forEach(item => {
+        const itemDate = new Date(item.createdAt);
+        if (itemDate >= startOfWeek) {
+          const dayName = days[itemDate.getDay()];
+          const dayObj = currentWeekData.find(d => d.name === dayName);
+          if (dayObj) {
+            dayObj.revenue += item.total;
+          }
+        }
+      });
+
+      setWeeklyChartData(currentWeekData);
+
     } catch (error) {
       console.error('Error fetching earnings data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getCycleEnd = () => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return lastDay.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   if (authLoading || (isLoading && !analytics)) {
@@ -69,17 +119,6 @@ export default function EarningsPage() {
       </div>
     );
   }
-
-  // Generate chart data from recent orders or analytics
-  const chartData = [
-    { name: 'Mon', revenue: 0 },
-    { name: 'Tue', revenue: 0 },
-    { name: 'Wed', revenue: 0 },
-    { name: 'Thu', revenue: 0 },
-    { name: 'Fri', revenue: 0 },
-    { name: 'Sat', revenue: 0 },
-    { name: 'Sun', revenue: analytics?.totalRevenue || 0 },
-  ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-10 py-6 animate-in fade-in duration-700 px-1">
@@ -92,7 +131,7 @@ export default function EarningsPage() {
         <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
           <div className="px-4 py-2 bg-primary/5 rounded-xl border border-primary/10">
             <p className="text-[8px] font-black text-primary uppercase tracking-[0.2em] mb-0.5">Cycle End</p>
-            <p className="text-xs font-black text-gray-900 uppercase">31 Mar 2026</p>
+            <p className="text-xs font-black text-gray-900 uppercase">{getCycleEnd()}</p>
           </div>
         </div>
       </div>
@@ -103,9 +142,9 @@ export default function EarningsPage() {
           <CardContent className="p-8">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Revenue</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last 7 Days Revenue</p>
                 <div className="flex items-baseline gap-1">
-                  <p className="text-3xl font-black text-gray-900 tracking-tighter">₹{analytics?.totalRevenue || 0}</p>
+                  <p className="text-3xl font-black text-gray-900 tracking-tighter">₹{lastWeekIncome || 0}</p>
                 </div>
               </div>
               <div className="p-4 bg-primary/5 rounded-2xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
@@ -114,12 +153,8 @@ export default function EarningsPage() {
             </div>
             <div className="mt-6 flex flex-col gap-1">
               <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                <span className="text-gray-400">Online Net</span>
-                <span className="text-primary">₹{analytics?.onlineNetRevenue || 0}</span>
-              </div>
-              <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                <span className="text-gray-400">Offline POS</span>
-                <span className="text-blue-500">₹{analytics?.offlineRevenue || 0}</span>
+                <span className="text-gray-400">Total Lifetime</span>
+                <span className="text-primary">₹{analytics?.totalRevenue || 0}</span>
               </div>
             </div>
           </CardContent>
@@ -192,7 +227,7 @@ export default function EarningsPage() {
             </CardHeader>
             <CardContent className="p-8 pt-10 flex-1">
               <ResponsiveContainer width="100%" height={320}>
-                <AreaChart data={chartData}>
+                <AreaChart data={weeklyChartData}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0b8a4f" stopOpacity={0.1} />

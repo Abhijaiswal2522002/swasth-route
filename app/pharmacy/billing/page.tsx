@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone, X, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, Camera, Receipt, User, Phone, Save, Printer, Smartphone, X, CheckCircle2, FileText, Pill, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,9 @@ export default function BillingPage() {
   const [lastKeyTime, setLastKeyTime] = useState(0);
   const [customIp, setCustomIp] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [isAnalyzingPrescription, setIsAnalyzingPrescription] = useState(false);
+  const [extractedMedicines, setExtractedMedicines] = useState<any[]>([]);
+  const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
 
   const addToCart = React.useCallback((medicine: Medicine, inventoryPrice?: number) => {
     const price = inventoryPrice || medicine.price || 0;
@@ -117,6 +120,25 @@ export default function BillingPage() {
 
   const removeFromCart = (medicineId: string) => {
     setCart(cart.filter((item) => item.medicineId !== medicineId));
+  };
+
+  const handlePrescriptionUpload = async (file: File) => {
+    setIsAnalyzingPrescription(true);
+    setIsPrescriptionDialogOpen(true);
+    try {
+      const response = await ApiClient.analyzePrescription(file);
+      if (response.data && response.data.extractedMedicines) {
+        setExtractedMedicines(response.data.extractedMedicines);
+        toast.success('Prescription analyzed successfully');
+      } else {
+        toast.error(response.error || 'Failed to analyze prescription');
+      }
+    } catch (error) {
+      console.error('OCR Error:', error);
+      toast.error('Error processing prescription image');
+    } finally {
+      setIsAnalyzingPrescription(false);
+    }
   };
 
   // Device detection
@@ -360,6 +382,25 @@ export default function BillingPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-2xl border-gray-100 shadow-sm hover:bg-primary hover:text-white transition-all group shrink-0"
+            onClick={() => document.getElementById('prescription-upload')?.click()}
+          >
+            <FileText className="w-5 h-5 text-gray-400 group-hover:text-white" />
+          </Button>
+          <input
+            id="prescription-upload"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handlePrescriptionUpload(file);
+            }}
+          />
+
           {isMobile ? (
             <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
               <DialogTrigger asChild>
@@ -766,6 +807,64 @@ export default function BillingPage() {
           }
         }
       `}</style>
+      {/* Prescription Results Dialog */}
+      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Prescription Analysis</DialogTitle>
+            <DialogDescription className="font-bold text-gray-400 uppercase text-[10px] tracking-widest">
+              AI-extracted medicines and availability status
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6 space-y-4">
+            {isAnalyzingPrescription ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-4">
+                <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Decoding handwriting...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {extractedMedicines.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${item.status === 'In Stock' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                        <Pill size={20} />
+                      </div>
+                      <div>
+                        <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
+                          {item.medicine?.name || item.name}
+                        </p>
+                        <Badge variant="outline" className={`mt-1 text-[8px] font-black uppercase tracking-tighter ${item.status === 'In Stock' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
+                          {item.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    {item.status === 'In Stock' && (
+                      <Button
+                        size="sm"
+                        className="rounded-xl h-10 font-black px-4 shadow-lg shadow-primary/10"
+                        onClick={() => {
+                          addToCart(item.medicine, item.inventory?.price);
+                          toast.success('Added to cart');
+                        }}
+                      >
+                        <Plus size={16} className="mr-1" /> Add
+                      </Button>
+                    )}
+                  </div>
+                ))}
+
+                {extractedMedicines.length === 0 && (
+                  <div className="py-10 text-center">
+                    <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">No medicines identified</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

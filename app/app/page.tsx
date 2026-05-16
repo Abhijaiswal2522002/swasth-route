@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Search, MapPin, AlertCircle, Clock,
   ChevronRight, FileText, HeadphonesIcon,
-  RefreshCw, Store, Truck, LogOut, Navigation, Users
+  RefreshCw, Store, Truck, LogOut, Navigation, Users, Pill, Plus
 } from 'lucide-react';
 import ApiClient from '@/lib/api';
 import {
@@ -45,6 +45,11 @@ export default function AppHomeDashboard() {
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
   const [orderForOther, setOrderForOther] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Prescription states
+  const [isAnalyzingPrescription, setIsAnalyzingPrescription] = useState(false);
+  const [extractedMedicines, setExtractedMedicines] = useState<any[]>([]);
+  const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -182,6 +187,24 @@ export default function AppHomeDashboard() {
     setAddressResults([]);
     setOrderForOther(false);
     setIsLocationModalOpen(false);
+  };
+
+  const handlePrescriptionUpload = async (file: File) => {
+    setIsAnalyzingPrescription(true);
+    setIsPrescriptionDialogOpen(true);
+    try {
+      const response = await ApiClient.analyzePrescription(file);
+      if (response.data && response.data.extractedMedicines) {
+        // Filter out medicines that were not found in catalog or handle them
+        setExtractedMedicines(response.data.extractedMedicines);
+      } else {
+        console.error('Prescription analysis error:', response.error);
+      }
+    } catch (error) {
+      console.error('OCR Error:', error);
+    } finally {
+      setIsAnalyzingPrescription(false);
+    }
   };
 
   const currentAddress = selectedLocation || profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
@@ -333,7 +356,21 @@ export default function AppHomeDashboard() {
 
           {/* QUICK ACTIONS */}
           <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <Button variant="outline" className="h-20 md:h-24 py-4 flex-col gap-2 items-center bg-white hover:bg-primary/5 hover:text-primary hover:border-primary/30 rounded-xl shadow-sm">
+            <input
+              id="rx-upload"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handlePrescriptionUpload(file);
+              }}
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => document.getElementById('rx-upload')?.click()}
+              className="h-20 md:h-24 py-4 flex-col gap-2 items-center bg-white hover:bg-primary/5 hover:text-primary hover:border-primary/30 rounded-xl shadow-sm"
+            >
               <FileText className="w-6 h-6 text-gray-400 group-hover:text-primary transition-colors" />
               <span className="text-xs md:text-sm font-semibold">Upload Rx</span>
             </Button>
@@ -603,6 +640,68 @@ export default function AppHomeDashboard() {
               Confirm Location
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* PRESCRIPTION ANALYSIS DIALOG */}
+      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Prescription Analysis</DialogTitle>
+            <DialogDescription className="font-bold text-gray-400 uppercase text-[10px] tracking-widest">
+              Identified Medicines from your upload
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-6 space-y-4">
+            {isAnalyzingPrescription ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-4">
+                <RefreshCw className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Analyzing your Rx...</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {extractedMedicines.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
+                        <Pill size={20} />
+                      </div>
+                      <div>
+                        <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
+                          {item.medicine?.name || item.name}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Quantity: 1 Unit</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="rounded-xl h-10 font-black px-4 shadow-lg shadow-primary/10"
+                      onClick={() => {
+                        // Redirect to medicine search or create request
+                        window.location.href = `/app/medicines?query=${encodeURIComponent(item.medicine?.name || item.name)}`;
+                      }}
+                    >
+                      Find
+                    </Button>
+                  </div>
+                ))}
+                
+                {extractedMedicines.length === 0 && (
+                  <div className="py-10 text-center">
+                    <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">No medicines identified</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {!isAnalyzingPrescription && extractedMedicines.length > 0 && (
+            <DialogFooter className="p-6 pt-0">
+              <p className="text-[9px] text-center w-full text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+                You can search for these medicines individually or raise a combined request to all nearby pharmacies.
+              </p>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

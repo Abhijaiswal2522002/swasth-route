@@ -601,6 +601,15 @@ export class ApiClient {
     return this.request<any>('/pharmacies/analytics');
   }
 
+  static async analyzePrescription(file: File) {
+    const formData = new FormData();
+    formData.append('prescription', file);
+    return this.request<any>('/prescription/analyze', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
   static async getExpiryAlerts() {
     return this.request<any>('/pharmacies/expiry');
   }
