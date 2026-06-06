@@ -112,6 +112,12 @@ router.post('/analyze', verifyToken, uploadPharmacy.single('prescription'), asyn
     let doctorName = '';
 
     // Check if Gemini API is available
+    console.log('[Prescription] Backend environment check:', {
+      hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT
+    });
+
     if (process.env.GEMINI_API_KEY) {
       console.log('[Prescription] Using Google Gemini AI Vision API for analysis');
       try {
