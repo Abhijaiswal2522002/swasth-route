@@ -25,6 +25,7 @@ import {
 import { reverseGeocode, getCurrentLocation, forwardGeocode, type GeocodedResult } from '@/lib/locationUtils';
 import MapBox from '@/components/MapBox';
 import { useLocation } from '@/lib/context/LocationContext';
+import PrescriptionAnalysisDialog from '@/components/PrescriptionAnalysisDialog';
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
@@ -50,6 +51,8 @@ export default function AppHomeDashboard() {
   const [isAnalyzingPrescription, setIsAnalyzingPrescription] = useState(false);
   const [extractedMedicines, setExtractedMedicines] = useState<any[]>([]);
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
+  const [isGeminiActive, setIsGeminiActive] = useState(false);
+  const [isOcrUnavailable, setIsOcrUnavailable] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -192,19 +195,34 @@ export default function AppHomeDashboard() {
   const handlePrescriptionUpload = async (file: File) => {
     setIsAnalyzingPrescription(true);
     setIsPrescriptionDialogOpen(true);
+    setIsGeminiActive(false);
+    setIsOcrUnavailable(false);
     try {
       const response = await ApiClient.analyzePrescription(file);
-      if (response.data && response.data.extractedMedicines) {
-        // Filter out medicines that were not found in catalog or handle them
-        setExtractedMedicines(response.data.extractedMedicines);
+      if (response.data) {
+        setExtractedMedicines(response.data.extractedMedicines || []);
+        setIsGeminiActive(!!response.data.isGeminiActive);
+        setIsOcrUnavailable(!!response.data.isOcrUnavailable);
       } else {
         console.error('Prescription analysis error:', response.error);
+        setIsOcrUnavailable(true);
+        setExtractedMedicines([]);
       }
     } catch (error) {
       console.error('OCR Error:', error);
+      setIsOcrUnavailable(true);
+      setExtractedMedicines([]);
     } finally {
       setIsAnalyzingPrescription(false);
     }
+  };
+
+  const handlePrescriptionAction = (meds: any[]) => {
+    if (meds.length > 0) {
+      const firstMed = meds[0].medicine?.name || meds[0].name;
+      window.location.href = `/app/medicines?query=${encodeURIComponent(firstMed)}`;
+    }
+    setIsPrescriptionDialogOpen(false);
   };
 
   const currentAddress = selectedLocation || profile?.addresses?.find((a: any) => a.isDefault) || profile?.addresses?.[0] || {
@@ -363,7 +381,10 @@ export default function AppHomeDashboard() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handlePrescriptionUpload(file);
+                if (file) {
+                  handlePrescriptionUpload(file);
+                  e.target.value = '';
+                }
               }}
             />
             <Button 
@@ -643,91 +664,18 @@ export default function AppHomeDashboard() {
         </DialogContent>
       </Dialog>
       {/* PRESCRIPTION ANALYSIS DIALOG */}
-      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Prescription Analysis</DialogTitle>
-            <DialogDescription className="font-bold text-gray-400 uppercase text-[10px] tracking-widest">
-              Identified Medicines from your upload
-            </DialogDescription>
-          </DialogHeader>
+      <PrescriptionAnalysisDialog
+        isOpen={isPrescriptionDialogOpen}
+        onOpenChange={setIsPrescriptionDialogOpen}
+        isAnalyzing={isAnalyzingPrescription}
+        extractedMedicines={extractedMedicines}
+        onMedicinesChange={setExtractedMedicines}
+        isGeminiActive={isGeminiActive}
+        isOcrUnavailable={isOcrUnavailable}
+        role="user"
+        onAction={handlePrescriptionAction}
+      />
 
-          <div className="py-6 space-y-4">
-            {isAnalyzingPrescription ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-4">
-                <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Analyzing your Rx...</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {extractedMedicines.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
-                        <Pill size={20} />
-                      </div>
-                      <div>
-                        <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
-                          {item.medicine?.name || item.name}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                          {item.dosage && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-blue-600 border-blue-200 bg-blue-50">
-                              {item.dosage}
-                            </Badge>
-                          )}
-                          {item.frequency && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-green-600 border-green-200 bg-green-50">
-                              {item.frequency}
-                            </Badge>
-                          )}
-                          {item.duration && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-amber-600 border-amber-200 bg-amber-50">
-                              {item.duration}
-                            </Badge>
-                          )}
-                          {item.instructions && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-purple-600 border-purple-200 bg-purple-50">
-                              {item.instructions}
-                            </Badge>
-                          )}
-                          {!item.dosage && !item.frequency && !item.duration && !item.instructions && (
-                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Quantity: 1 Unit</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="rounded-xl h-10 font-black px-4 shadow-lg shadow-primary/10"
-                      onClick={() => {
-                        // Redirect to medicine search or create request
-                        window.location.href = `/app/medicines?query=${encodeURIComponent(item.medicine?.name || item.name)}`;
-                      }}
-                    >
-                      Find
-                    </Button>
-                  </div>
-                ))}
-                
-                {extractedMedicines.length === 0 && (
-                  <div className="py-10 text-center">
-                    <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">No medicines identified</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {!isAnalyzingPrescription && extractedMedicines.length > 0 && (
-            <DialogFooter className="p-6 pt-0">
-              <p className="text-[9px] text-center w-full text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-                You can search for these medicines individually or raise a combined request to all nearby pharmacies.
-              </p>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

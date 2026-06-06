@@ -7,6 +7,7 @@ import { createWorker } from 'tesseract.js';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -259,6 +260,7 @@ Format the response strictly as a JSON object, without any markdown formatting b
           doctorName,
           recognizedText,
           extractedMedicines,
+          isGeminiActive: true,
         });
 
       } catch (err) {
@@ -269,129 +271,162 @@ Format the response strictly as a JSON object, without any markdown formatting b
     // Fallback: Offline Tesseract OCR + Local Details Regex + Fuzzy Match
     console.log('[Prescription] Running Tesseract OCR offline fallback');
     
-    // Initialize worker pointing to local API directory (where eng.traineddata resides)
-    const worker = await createWorker('eng', 1, {
-      logger: () => {},
-      langPath: path.join(__dirname, '..'),
-      cachePath: path.join(__dirname, '..'),
-    });
+    try {
+      const cachePath = process.env.NODE_ENV === 'production' ? os.tmpdir() : path.join(__dirname, '..');
+      const langPath = path.join(__dirname, '..');
 
-    const { data: { text: recognizedTextText } } = await worker.recognize(imageBuffer);
-    await worker.terminate();
+      // Initialize worker pointing to local API directory (where eng.traineddata resides)
+      const worker = await createWorker('eng', 1, {
+        logger: () => {},
+        langPath: langPath,
+        cachePath: cachePath,
+      });
 
-    recognizedText = recognizedTextText;
+      const { data: { text: recognizedTextText } } = await worker.recognize(imageBuffer);
+      await worker.terminate();
 
-    const lines = recognizedText
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean);
+      recognizedText = recognizedTextText;
 
-    const medicineLines = lines.filter(line => /\b(mg|ml|mcg|g|tablet|tab|capsule|cap|syrup|drops|cream|ointment|tablet|tab|bd|tid|od|qid|once|twice)\b/i.test(line));
-    const candidates = medicineLines.length > 0 ? medicineLines : lines;
+      const lines = recognizedText
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
 
-    const allMeds = await Medicine.find({ status: 'active' });
+      const medicineLines = lines.filter(line => /\b(mg|ml|mcg|g|tablet|tab|capsule|cap|syrup|drops|cream|ointment|tablet|tab|bd|tid|od|qid|once|twice)\b/i.test(line));
+      const candidates = medicineLines.length > 0 ? medicineLines : lines;
 
-    for (const line of candidates) {
-      const cleaned = line
-        .replace(/^[\d\.\)\-\s]+/, '')
-        .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|once|twice|thrice|od|bd|tid|qid|pc|ac|hs|stat|prn)\b/gi, '')
-        .replace(/\b(tab|tablet|cap|capsule|syrup|mg|ml|mcg|g|drops|cream|ointment)\b/gi, '')
-        .replace(/[\(\)\[\]\.\,;:\*]/g, ' ')
-        .replace(/\s{2,}/g, ' ')
-        .trim();
+      const allMeds = await Medicine.find({ status: 'active' });
 
-      if (!cleaned) {
-        continue;
-      }
+      const IGNORED_PHRASES = [
+        'a day', 'once', 'twice', 'thrice', 'daily', 'food', 'after', 'before', 'with', 
+        'empty', 'stomach', 'days', 'weeks', 'months', 'hours', 'capsule', 'capsules', 
+        'tablet', 'tablets', 'pill', 'pills', 'water', 'milk', 'bedtime', 'morning', 
+        'afternoon', 'night', 'noon', 'evening', 'daily use', 'as directed', 'directed',
+        'twice a day', 'once a day', 'thrice a day', 'once daily', 'twice daily', 'thrice daily'
+      ];
 
-      // Extract regex details
-      const details = extractPrescriptionDetails(line);
+      for (const line of candidates) {
+        const cleaned = line
+          .replace(/^[\d\.\)\-\s]+/, '')
+          .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|once|twice|thrice|od|bd|tid|qid|pc|ac|hs|stat|prn)\b/gi, '')
+          .replace(/\b(tab|tablet|cap|capsule|syrup|mg|ml|mcg|g|drops|cream|ointment)\b/gi, '')
+          .replace(/[\(\)\[\]\.\,;:\*]/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
 
-      // Match database
-      const cleanedName = cleaned.toLowerCase();
-      let bestMatch = null;
-      let bestScore = 0;
-
-      // 1. Direct Lookup
-      for (const m of allMeds) {
-        const mName = m.name.toLowerCase();
-        if (mName === cleanedName) {
-          bestMatch = m;
-          bestScore = 1.0;
-          break;
+        if (!cleaned) {
+          continue;
         }
-        if (cleanedName.includes(mName) || mName.includes(cleanedName)) {
-          const score = Math.min(mName.length, cleanedName.length) / Math.max(mName.length, cleanedName.length);
-          if (score > bestScore) {
-            bestMatch = m;
-            bestScore = score;
-          }
-        }
-      }
 
-      // 2. Levenshtein fuzzy matching
-      if (bestScore < 0.7) {
-        const words = cleanedName.split(/\s+/).filter(w => w.length > 2 && !/^\d+$/.test(w));
+        const cleanedLower = cleaned.toLowerCase();
+        
+        // Skip common false positives
+        if (cleanedLower.length < 3 || /^\d+$/.test(cleanedLower) || IGNORED_PHRASES.includes(cleanedLower)) {
+          continue;
+        }
+
+        // Extract regex details
+        const details = extractPrescriptionDetails(line);
+
+        // Match database
+        const cleanedName = cleaned.toLowerCase();
+        let bestMatch = null;
+        let bestScore = 0;
+
+        // 1. Direct Lookup
         for (const m of allMeds) {
           const mName = m.name.toLowerCase();
-          
-          // Test similarity of entire cleaned string
-          const distFull = getLevenshteinDistance(cleanedName, mName);
-          const similarityFull = 1 - distFull / Math.max(cleanedName.length, mName.length);
-          
-          if (similarityFull > bestScore) {
-            bestScore = similarityFull;
+          if (mName === cleanedName) {
             bestMatch = m;
+            bestScore = 1.0;
+            break;
           }
-
-          // Test individual words
-          for (const word of words) {
-            const distWord = getLevenshteinDistance(word, mName);
-            const similarityWord = 1 - distWord / Math.max(word.length, mName.length);
-            if (similarityWord > bestScore) {
-              bestScore = similarityWord;
+          if (cleanedName.includes(mName) || mName.includes(cleanedName)) {
+            const score = Math.min(mName.length, cleanedName.length) / Math.max(mName.length, cleanedName.length);
+            if (score > bestScore) {
               bestMatch = m;
+              bestScore = score;
             }
           }
         }
-      }
 
-      const catalogItem = bestScore >= 0.7 ? bestMatch : null;
-      let inventoryItem = null;
-      let status = catalogItem ? 'Out of Stock' : 'Not found in catalog';
-      
-      if (catalogItem) {
-        status = 'Found in catalog';
-        if (req.user.role === 'pharmacy' && req.user.id) {
-          const pharmacy = await Pharmacy.findById(req.user.id);
-          if (pharmacy) {
-            inventoryItem = pharmacy.inventory.find(
-              inv => inv.medicineId?.toString() === catalogItem._id.toString()
-            );
-            status = inventoryItem ? 'In Stock' : 'Out of Stock';
+        // 2. Levenshtein fuzzy matching
+        if (bestScore < 0.7) {
+          const words = cleanedName.split(/\s+/).filter(w => w.length > 2 && !/^\d+$/.test(w));
+          for (const m of allMeds) {
+            const mName = m.name.toLowerCase();
+            
+            // Test similarity of entire cleaned string
+            const distFull = getLevenshteinDistance(cleanedName, mName);
+            const similarityFull = 1 - distFull / Math.max(cleanedName.length, mName.length);
+            
+            if (similarityFull > bestScore) {
+              bestScore = similarityFull;
+              bestMatch = m;
+            }
+
+            // Test individual words
+            for (const word of words) {
+              const distWord = getLevenshteinDistance(word, mName);
+              const similarityWord = 1 - distWord / Math.max(word.length, mName.length);
+              if (similarityWord > bestScore) {
+                bestScore = similarityWord;
+                bestMatch = m;
+              }
+            }
           }
         }
+
+        const catalogItem = bestScore >= 0.7 ? bestMatch : null;
+        let inventoryItem = null;
+        let status = catalogItem ? 'Out of Stock' : 'Not found in catalog';
+        
+        if (catalogItem) {
+          status = 'Found in catalog';
+          if (req.user.role === 'pharmacy' && req.user.id) {
+            const pharmacy = await Pharmacy.findById(req.user.id);
+            if (pharmacy) {
+              inventoryItem = pharmacy.inventory.find(
+                inv => inv.medicineId?.toString() === catalogItem._id.toString()
+              );
+              status = inventoryItem ? 'In Stock' : 'Out of Stock';
+            }
+          }
+        }
+
+        extractedMedicines.push({
+          raw: line,
+          name: catalogItem?.name || cleaned,
+          dosage: details.dosage,
+          frequency: details.frequency,
+          duration: details.duration,
+          instructions: details.instructions,
+          medicine: catalogItem,
+          inventory: inventoryItem,
+          status,
+        });
       }
 
-      extractedMedicines.push({
-        raw: line,
-        name: catalogItem?.name || cleaned,
-        dosage: details.dosage,
-        frequency: details.frequency,
-        duration: details.duration,
-        instructions: details.instructions,
-        medicine: catalogItem,
-        inventory: inventoryItem,
-        status,
+      res.json({
+        message: 'Prescription analyzed successfully',
+        imageUrl,
+        recognizedText,
+        extractedMedicines,
+        isGeminiActive: false,
+      });
+
+    } catch (ocrError) {
+      console.error('[Prescription] Offline Tesseract OCR failed in environment:', ocrError);
+      res.json({
+        message: 'Prescription uploaded successfully. OCR analysis was unavailable in this environment, please enter medicines manually.',
+        imageUrl,
+        recognizedText: '',
+        extractedMedicines: [],
+        isGeminiActive: false,
+        isOcrUnavailable: true,
       });
     }
 
-    res.json({
-      message: 'Prescription analyzed successfully',
-      imageUrl,
-      recognizedText,
-      extractedMedicines,
-    });
 
   } catch (error) {
     console.error('Prescription Analysis Error:', error);

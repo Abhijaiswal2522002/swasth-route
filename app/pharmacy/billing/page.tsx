@@ -14,6 +14,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { ApiClient } from '@/lib/api';
+import PrescriptionAnalysisDialog from '@/components/PrescriptionAnalysisDialog';
 
 interface Medicine {
   _id: string;
@@ -51,6 +52,8 @@ export default function BillingPage() {
   const [isAnalyzingPrescription, setIsAnalyzingPrescription] = useState(false);
   const [extractedMedicines, setExtractedMedicines] = useState<any[]>([]);
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
+  const [isGeminiActive, setIsGeminiActive] = useState(false);
+  const [isOcrUnavailable, setIsOcrUnavailable] = useState(false);
 
   const addToCart = React.useCallback((medicine: Medicine, inventoryPrice?: number) => {
     const price = inventoryPrice || medicine.price || 0;
@@ -125,20 +128,46 @@ export default function BillingPage() {
   const handlePrescriptionUpload = async (file: File) => {
     setIsAnalyzingPrescription(true);
     setIsPrescriptionDialogOpen(true);
+    setIsGeminiActive(false);
+    setIsOcrUnavailable(false);
     try {
       const response = await ApiClient.analyzePrescription(file);
-      if (response.data && response.data.extractedMedicines) {
-        setExtractedMedicines(response.data.extractedMedicines);
+      if (response.data) {
+        setExtractedMedicines(response.data.extractedMedicines || []);
+        setIsGeminiActive(!!response.data.isGeminiActive);
+        setIsOcrUnavailable(!!response.data.isOcrUnavailable);
         toast.success('Prescription analyzed successfully');
       } else {
         toast.error(response.error || 'Failed to analyze prescription');
+        setIsOcrUnavailable(true);
+        setExtractedMedicines([]);
       }
     } catch (error) {
       console.error('OCR Error:', error);
       toast.error('Error processing prescription image');
+      setIsOcrUnavailable(true);
+      setExtractedMedicines([]);
     } finally {
       setIsAnalyzingPrescription(false);
     }
+  };
+
+  const handlePrescriptionAction = (meds: any[]) => {
+    let addedCount = 0;
+    meds.forEach(item => {
+      // Only add to cart if status is "In Stock" and catalog medicine exists
+      if (item.status === 'In Stock' && item.medicine) {
+        addToCart(item.medicine, item.inventory?.price);
+        addedCount++;
+      }
+    });
+
+    if (addedCount > 0) {
+      toast.success(`Added ${addedCount} items to the cart`);
+    } else {
+      toast.info('No in-stock medicines were added');
+    }
+    setIsPrescriptionDialogOpen(false);
   };
 
   // Device detection
@@ -397,7 +426,10 @@ export default function BillingPage() {
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) handlePrescriptionUpload(file);
+              if (file) {
+                handlePrescriptionUpload(file);
+                e.target.value = '';
+              }
             }}
           />
 
@@ -808,85 +840,18 @@ export default function BillingPage() {
         }
       `}</style>
       {/* Prescription Results Dialog */}
-      <Dialog open={isPrescriptionDialogOpen} onOpenChange={setIsPrescriptionDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-[2rem]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tight">Prescription Analysis</DialogTitle>
-            <DialogDescription className="font-bold text-gray-400 uppercase text-[10px] tracking-widest">
-              AI-extracted medicines and availability status
-            </DialogDescription>
-          </DialogHeader>
+      <PrescriptionAnalysisDialog
+        isOpen={isPrescriptionDialogOpen}
+        onOpenChange={setIsPrescriptionDialogOpen}
+        isAnalyzing={isAnalyzingPrescription}
+        extractedMedicines={extractedMedicines}
+        onMedicinesChange={setExtractedMedicines}
+        isGeminiActive={isGeminiActive}
+        isOcrUnavailable={isOcrUnavailable}
+        role="pharmacy"
+        onAction={handlePrescriptionAction}
+      />
 
-          <div className="py-6 space-y-4">
-            {isAnalyzingPrescription ? (
-              <div className="py-20 flex flex-col items-center justify-center gap-4">
-                <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Decoding handwriting...</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {extractedMedicines.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-gray-100 hover:border-primary/20 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${item.status === 'In Stock' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                        <Pill size={20} />
-                      </div>
-                      <div>
-                        <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
-                          {item.medicine?.name || item.name}
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-1.5 items-center">
-                          <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-tighter ${item.status === 'In Stock' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
-                            {item.status}
-                          </Badge>
-                          {item.dosage && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-blue-600 border-blue-200 bg-blue-50">
-                              {item.dosage}
-                            </Badge>
-                          )}
-                          {item.frequency && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-green-600 border-green-200 bg-green-50">
-                              {item.frequency}
-                            </Badge>
-                          )}
-                          {item.duration && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-amber-600 border-amber-200 bg-amber-50">
-                              {item.duration}
-                            </Badge>
-                          )}
-                          {item.instructions && (
-                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-purple-600 border-purple-200 bg-purple-50">
-                              {item.instructions}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {item.status === 'In Stock' && (
-                      <Button
-                        size="sm"
-                        className="rounded-xl h-10 font-black px-4 shadow-lg shadow-primary/10"
-                        onClick={() => {
-                          addToCart(item.medicine, item.inventory?.price);
-                          toast.success('Added to cart');
-                        }}
-                      >
-                        <Plus size={16} className="mr-1" /> Add
-                      </Button>
-                    )}
-                  </div>
-                ))}
-
-                {extractedMedicines.length === 0 && (
-                  <div className="py-10 text-center">
-                    <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">No medicines identified</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
