@@ -670,7 +670,31 @@ export default function AppHomeDashboard() {
                         <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
                           {item.medicine?.name || item.name}
                         </p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Quantity: 1 Unit</p>
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {item.dosage && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-blue-600 border-blue-200 bg-blue-50">
+                              {item.dosage}
+                            </Badge>
+                          )}
+                          {item.frequency && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-green-600 border-green-200 bg-green-50">
+                              {item.frequency}
+                            </Badge>
+                          )}
+                          {item.duration && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-amber-600 border-amber-200 bg-amber-50">
+                              {item.duration}
+                            </Badge>
+                          )}
+                          {item.instructions && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-purple-600 border-purple-200 bg-purple-50">
+                              {item.instructions}
+                            </Badge>
+                          )}
+                          {!item.dosage && !item.frequency && !item.duration && !item.instructions && (
+                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Quantity: 1 Unit</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <Button

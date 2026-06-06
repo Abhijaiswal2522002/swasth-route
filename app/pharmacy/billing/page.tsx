@@ -835,9 +835,31 @@ export default function BillingPage() {
                         <p className="font-black text-gray-900 uppercase tracking-tight text-sm">
                           {item.medicine?.name || item.name}
                         </p>
-                        <Badge variant="outline" className={`mt-1 text-[8px] font-black uppercase tracking-tighter ${item.status === 'In Stock' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
-                          {item.status}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1 mt-1.5 items-center">
+                          <Badge variant="outline" className={`text-[8px] font-black uppercase tracking-tighter ${item.status === 'In Stock' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}`}>
+                            {item.status}
+                          </Badge>
+                          {item.dosage && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-blue-600 border-blue-200 bg-blue-50">
+                              {item.dosage}
+                            </Badge>
+                          )}
+                          {item.frequency && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-green-600 border-green-200 bg-green-50">
+                              {item.frequency}
+                            </Badge>
+                          )}
+                          {item.duration && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-amber-600 border-amber-200 bg-amber-50">
+                              {item.duration}
+                            </Badge>
+                          )}
+                          {item.instructions && (
+                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-tighter text-purple-600 border-purple-200 bg-purple-50">
+                              {item.instructions}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {item.status === 'In Stock' && (

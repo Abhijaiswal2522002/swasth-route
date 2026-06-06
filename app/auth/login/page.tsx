@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, ArrowRight, Shield } from 'lucide-react';
 import { useEffect, Suspense } from 'react';
 
 
@@ -20,6 +19,7 @@ function LoginContent() {
   const msg = searchParams.get('msg');
   const verified = searchParams.get('verified');
   const registered = searchParams.get('registered');
+  const redirect = searchParams.get('redirect');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -70,8 +70,8 @@ function LoginContent() {
         router.push('/admin');
       } else if (user.role === 'pharmacy') {
         router.push('/pharmacy');
-      } else if (user.role === 'rider') {
-        router.push('/rider');
+      } else if (redirect) {
+        router.push(redirect);
       } else {
         router.push('/app');
       }
@@ -81,134 +81,122 @@ function LoginContent() {
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <Card className="backdrop-blur-xl border-white/10 bg-white/5 shadow-2xl overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-primary" />
-        <div className="p-8 space-y-8">
-          <div className="space-y-3 text-center">
-
-            <h1 className="text-3xl font-black tracking-tight text-black">
-              Welcome <span className="text-primary">Back.</span>
-            </h1>
-            <p className="text-slate-400 text-sm font-medium">Log in to your SwasthRoute account</p>
+    <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
+      <div className="p-8 space-y-8">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+  <img
+    src="/medicine.svg"
+    alt="Login icon"
+    className="h-10 w-10"
+  />
+  <div>
+    <div className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            SwasthRoute
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-bold text-slate-300 ml-1">
-                Email Address
-              </label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center ml-1">
-                <label htmlFor="password" className="text-sm font-bold text-slate-300">
-                  Password
-                </label>
-                <Link href="/auth/forgot-password">
-                  <span className="text-xs text-primary hover:underline font-bold">
-                    Forgot Password?
-                  </span>
-                </Link>
-              </div>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={loading}
-                  className="pl-12 h-14 bg-white/5 border-white/10 focus:border-primary/50 text-black placeholder:text-slate-600 rounded-xl transition-all"
-                />
-              </div>
-            </div>
-
-            {(msg || verified || registered) && !error && (
-              <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm font-medium animate-in fade-in slide-in-from-top-1">
-                {verified ? 'Email verified! You can now log in.' :
-                  registered ? 'Account created! Please verify your email.' :
-                    msg}
-              </div>
-            )}
-
-            {(localError || error) && (
-              <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium">
-                {localError || error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-14 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-lg shadow-xl shadow-primary/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Logging in...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  Sign In <ArrowRight className="w-5 h-5" />
-                </div>
-              )}
-            </Button>
-          </form>
-
-          <div className="relative py-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/5" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase font-black tracking-widest text-slate-600">
-              <span className="px-4 shadow-sm">New to SwasthRoute?</span>
-            </div>
-          </div>
-
-          <Link href="/auth/signup">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-14 rounded-xl border-black/10 hover:bg-primary/90 text-black font-bold transition-all"
-            >
-              Create New Account
-            </Button>
-          </Link>
+          <p className="text-muted-foreground text-sm">Log in to access emergency medicine delivery</p>
         </div>
-      </Card>
-    </div>
+  </div>
+  </div>
+          
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email Address
+            </label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={handleChange}
+              disabled={loading}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="password" className="text-sm font-medium">
+              Password
+            </label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleChange}
+              disabled={loading}
+              className="bg-input/50 border-primary/20 focus:border-primary"
+            />
+            <div className="flex justify-end">
+              <Link href="/auth/forgot-password">
+                <span className="text-xs text-primary hover:underline cursor-pointer">
+                  Forgot Password?
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {(msg || verified || registered) && !error && (
+            <div className="p-3 rounded-lg bg-green-50 border border-green-100 text-green-700 text-sm font-medium animate-in fade-in slide-in-from-top-1">
+              {verified ? 'Email verified successfully! You can now log in.' :
+                registered ? 'Account created! Please check your email to verify before logging in.' :
+                  msg}
+            </div>
+          )}
+
+          {(localError || error) && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+              {localError || error}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all duration-300"
+          >
+            {loading ? 'Logging in...' : 'Log In'}
+          </Button>
+        </form>
+
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-primary/10" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="px-2 bg-card/80 text-muted-foreground">New to SwasthRoute?</span>
+          </div>
+        </div>
+
+        <Link href={`/auth/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-primary/20 hover:bg-primary/5 hover:border-primary/40"
+          >
+            Create Account
+          </Button>
+        </Link>
+      </div>
+    </Card>
   );
 }
 
-import GuestRoute from '@/components/auth/GuestRoute';
-
 export default function LoginPage() {
   return (
-    <GuestRoute>
-      <Suspense fallback={
-        <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
-          <div className="p-8 flex items-center justify-center min-h-[400px]">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </Card>
-      }>
-        <LoginContent />
-      </Suspense>
-    </GuestRoute>
+    <Suspense fallback={
+      <Card className="backdrop-blur-sm border-primary/10 bg-card/80">
+        <div className="p-8 flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Card>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

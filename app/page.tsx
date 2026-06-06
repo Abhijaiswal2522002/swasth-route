@@ -93,7 +93,7 @@ export default function HomePage() {
   }, [searchQuery, pharmacies]);
 
   const handleViewDetails = (id: string) => {
-    console.log('[v0] Viewing pharmacy:', id);
+    router.push(`/app/medicines?pharmacy=${encodeURIComponent(id)}&emergency=true`);
   };
 
   return (
@@ -348,12 +348,12 @@ export default function HomePage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                  <Link href="/auth/signup" className="w-full sm:w-auto">
+                  <Link href={`/auth/signup?redirect=${encodeURIComponent('/app/medicines?emergency=true')}`} className="w-full sm:w-auto">
                     <Button size="lg" className="h-16 px-12 text-xl font-bold bg-destructive hover:bg-destructive/90 shadow-2xl hover:shadow-destructive/20 transition-all hover:-translate-y-1 w-full">
                       Order Now 🚀
                     </Button>
                   </Link>
-                  <Link href="/auth/login" className="w-full sm:w-auto">
+                  <Link href={`/auth/login?redirect=${encodeURIComponent('/app/medicines?emergency=true')}`} className="w-full sm:w-auto">
                     <Button size="lg" variant="outline" className="h-16 px-12 text-xl font-bold hover:bg-primary/5 transition-all w-full">
                       Login to Account
                     </Button>

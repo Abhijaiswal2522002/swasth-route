@@ -24,6 +24,7 @@ function SignupContent() {
   
   // Initialize role and step from URL if present
   const urlRole = searchParams.get('role');
+  const redirect = searchParams.get('redirect');
   const [step, setStep] = useState<'selection' | 'form'>(urlRole ? 'form' : 'selection');
   const [role, setRole] = useState<'user' | 'pharmacy' | 'rider'>((urlRole as any) || 'user');
   const [isDetectingAddress, setIsDetectingAddress] = useState(false);
@@ -174,7 +175,7 @@ function SignupContent() {
       }
 
       // Redirect to login with success message from backend
-      router.push(`/auth/login?msg=${encodeURIComponent(response.message)}`);
+      router.push(`/auth/login?msg=${encodeURIComponent(response.message)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`);
     } catch (err) {
       console.error('[v0] Signup failed:', err);
     }
@@ -206,7 +207,7 @@ function SignupContent() {
                     onClick={() => {
                       setRole(r.id as any);
                       setStep('form');
-                      router.push(`/auth/signup?role=${r.id}`);
+                      router.push(`/auth/signup?role=${r.id}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ''}`);
                     }}
                     className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all group text-left"
                   >
@@ -225,7 +226,7 @@ function SignupContent() {
               <div className="pt-4 text-center">
                 <p className="text-sm text-slate-500 font-medium">
                   Already have an account?{' '}
-                  <Link href="/auth/login" className="text-primary hover:underline font-bold">
+                  <Link href={`/auth/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`} className="text-primary hover:underline font-bold">
                     Log In
                   </Link>
                 </p>
@@ -247,7 +248,7 @@ function SignupContent() {
                 size="sm"
                 onClick={() => {
                   setStep('selection');
-                  router.push('/auth/signup');
+                  router.push(`/auth/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`);
                 }}
                 className="absolute left-4 top-4 text-slate-500 hover:text-primary hover:bg-primary/10 rounded-full"
               >
@@ -568,7 +569,7 @@ function SignupContent() {
               </div>
             </div>
 
-            <Link href="/auth/login">
+            <Link href={`/auth/login${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>
               <Button
                 type="button"
                 variant="outline"
