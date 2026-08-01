@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 import PharmacySidebar from '@/components/pharmacy/PharmacySidebar';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function PharmacyLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -26,10 +27,16 @@ export default function PharmacyLayout({ children }: { children: React.ReactNode
              <div className="flex items-center gap-4">
                 <a href="#" className="hover:text-teal-600 transition-colors">Merchant Policy</a>
                 <span className="opacity-20">/</span>
-                <a href="#" className="hover:text-teal-600 transition-colors">Emergency Support</a>
+                <button 
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-support-chat'))}
+                  className="hover:text-teal-600 transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] font-bold uppercase tracking-widest text-gray-400"
+                >
+                  Emergency Support
+                </button>
              </div>
           </footer>
         </main>
+        <SupportChatWidget />
       </div>
     </ProtectedRoute>
   );

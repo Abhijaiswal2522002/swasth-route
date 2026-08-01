@@ -29,6 +29,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import Link from 'next/link';
+import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,76 @@ import {
 import MapBox from '@/components/MapBox';
 import { reverseGeocode } from '@/lib/locationUtils';
 import { useLocation } from '@/lib/context/LocationContext';
+
+function PayPalCheckoutWrapper({
+  amount,
+  isDisabled,
+  onSuccess,
+  onError,
+  onSimulate
+}: {
+  amount: number;
+  isDisabled: boolean;
+  onSuccess: (details: any) => Promise<void>;
+  onError: (msg: string) => void;
+  onSimulate: () => void;
+}) {
+  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+  if (isRejected) {
+    return (
+      <div className="space-y-4 w-full">
+        <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-semibold text-center">
+          <p className="font-bold mb-1">Failed to load PayPal SDK</p>
+          <p className="text-slate-500 font-medium leading-relaxed">Check your internet connection or Client ID. You can still complete this transaction using simulated sandbox mode.</p>
+        </div>
+        <Button
+          onClick={onSimulate}
+          type="button"
+          disabled={isDisabled}
+          className="w-full rounded-2xl h-14 font-black text-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center justify-center gap-2 border-0"
+        >
+          Pay with Simulated PayPal
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative min-h-[150px] w-full z-10">
+      {isPending && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 gap-3 z-20">
+          <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading PayPal Buttons...</p>
+        </div>
+      )}
+      <PayPalButtons
+        style={{ layout: 'vertical', shape: 'pill', label: 'pay' }}
+        disabled={isDisabled}
+        createOrder={async (data, actions) => {
+          const res = await ApiClient.createPayPalOrder(amount);
+          if (res.data && res.data.id) return res.data.id;
+          throw new Error(res.error || 'Failed to create PayPal order');
+        }}
+        onApprove={async (data, actions) => {
+          if (actions.order) {
+            const details = await actions.order.capture();
+            const res = await ApiClient.capturePayPalOrder(data.orderID);
+            if (res.data && res.data.status === 'COMPLETED') {
+              await onSuccess(details);
+            } else {
+              onError(res.error || 'PayPal capture failed');
+            }
+          }
+        }}
+        onError={(err) => {
+          console.error('PayPal Button error:', err);
+          onError('PayPal payment failed. Please try again.');
+        }}
+      />
+    </div>
+  );
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -81,6 +152,15 @@ export default function CheckoutPage() {
     details: {},
     isLoading: false
   });
+
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'paypal'>('cod');
+  
+  // Simulated PayPal Modal states
+  const [isPayPalModalOpen, setIsPayPalModalOpen] = useState(false);
+  const [payPalStep, setPayPalStep] = useState<1 | 2 | 3 | 4>(1);
+  const [payPalEmail, setPayPalEmail] = useState('');
+  const [payPalPassword, setPayPalPassword] = useState('');
+  const [payPalLoading, setPayPalLoading] = useState(false);
 
   useEffect(() => {
     if (selectedLocation) {
@@ -153,11 +233,13 @@ export default function CheckoutPage() {
     fetchFees();
   }, [cartItems, selectedAddressId, isManualAddress, manualAddress.latitude, manualAddress.longitude, user]);
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (methodOverride?: string) => {
     if (cartItems.length === 0) return;
 
     setIsPlacingOrder(true);
     setError(null);
+
+    const finalPaymentMethod = methodOverride || paymentMethod;
 
     try {
       // 1. Determine delivery address
@@ -207,7 +289,7 @@ export default function CheckoutPage() {
           items,
           deliveryAddress,
           false, // Not emergency by default here
-          'cod',
+          finalPaymentMethod,
           notes
         );
       }
@@ -219,6 +301,39 @@ export default function CheckoutPage() {
       setError(err.message || 'Failed to place order. Please try again.');
     } finally {
       setIsPlacingOrder(false);
+    }
+  };
+
+  const payPalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+
+  const handlePayPalPaymentSuccess = async (details: any) => {
+    console.log('PayPal transaction completed:', details);
+    await handlePlaceOrder('card');
+  };
+
+  const startPayPalSimulation = () => {
+    setPayPalStep(1);
+    setPayPalEmail(user?.email || '');
+    setPayPalPassword('');
+    setIsPayPalModalOpen(true);
+  };
+
+  const handlePayPalSimulationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (payPalStep === 1) {
+      if (!payPalEmail) return;
+      setPayPalStep(2);
+    } else if (payPalStep === 2) {
+      if (!payPalPassword) return;
+      setPayPalStep(3);
+    } else if (payPalStep === 3) {
+      setPayPalStep(4);
+      setPayPalLoading(true);
+      setTimeout(async () => {
+        setPayPalLoading(false);
+        setIsPayPalModalOpen(false);
+        await handlePlaceOrder('card');
+      }, 2000);
     }
   };
 
@@ -423,20 +538,74 @@ export default function CheckoutPage() {
             )}
           </section>
 
-          {/* 3. Payment Method (Placeholder for now) */}
+          {/* 3. Payment Method */}
           <section className="space-y-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              Cash on Delivery
+              Payment Method
             </h2>
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
-              <div className="h-10 w-10 flex items-center justify-center bg-white rounded-full shadow-sm text-emerald-600">
-                ₹
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div
+                onClick={() => setPaymentMethod('cod')}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
+                  paymentMethod === 'cod'
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-gray-100 hover:border-primary/20 bg-white shadow-sm'
+                }`}
+              >
+                <div className={`h-10 w-10 flex items-center justify-center rounded-full font-black ${
+                  paymentMethod === 'cod' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  ₹
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Cash on Delivery</p>
+                  <p className="text-xs text-gray-500">Pay at your doorstep with cash/UPI</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-900">Pay on Delivery</p>
-                <p className="text-xs text-emerald-600">Payment will be collected at your doorstep.</p>
+
+              <div
+                onClick={() => setPaymentMethod('paypal')}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 ${
+                  paymentMethod === 'paypal'
+                    ? 'border-primary bg-primary/5 shadow-sm'
+                    : 'border-gray-100 hover:border-primary/20 bg-white shadow-sm'
+                }`}
+              >
+                <div className={`h-10 w-10 flex items-center justify-center rounded-full font-black ${
+                  paymentMethod === 'paypal' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  PP
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">PayPal / Card</p>
+                  <p className="text-xs text-gray-500">Pay securely online with PayPal/Card</p>
+                </div>
               </div>
             </div>
+
+            {paymentMethod === 'cod' && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-emerald-900">Pay on Delivery</p>
+                  <p className="text-xs text-emerald-600">Payment will be collected at your doorstep. Please keep change ready.</p>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'paypal' && (
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 flex items-center gap-3">
+                <Info className="w-5 h-5 text-blue-600 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-blue-900">PayPal / Cards</p>
+                  <p className="text-xs text-blue-600">
+                    {payPalClientId 
+                      ? 'Pay with PayPal (Official integration).' 
+                      : 'Swasth Sandbox active. A simulated PayPal checkout will open.'}
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
         </div>
@@ -551,22 +720,44 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <Button
-                onClick={handlePlaceOrder}
-                disabled={isPlacingOrder || cartItems.length === 0}
-                className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2"
-              >
-                {isPlacingOrder ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Placing Order...
-                  </>
+              {paymentMethod === 'cod' ? (
+                <Button
+                  onClick={() => handlePlaceOrder('cod')}
+                  disabled={isPlacingOrder || cartItems.length === 0}
+                  className="w-full rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all flex items-center justify-center gap-2"
+                >
+                  {isPlacingOrder ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Placing Order...
+                    </>
+                  ) : (
+                    <>
+                      Place Order ₹{cartTotal + feesBreakdown.totalDeliveryFee}
+                    </>
+                  )}
+                </Button>
+              ) : (
+                payPalClientId ? (
+                  <PayPalScriptProvider options={{ clientId: payPalClientId, currency: 'USD' }}>
+                    <PayPalCheckoutWrapper
+                      amount={cartTotal + feesBreakdown.totalDeliveryFee}
+                      isDisabled={isPlacingOrder || cartItems.length === 0}
+                      onSuccess={handlePayPalPaymentSuccess}
+                      onError={setError}
+                      onSimulate={startPayPalSimulation}
+                    />
+                  </PayPalScriptProvider>
                 ) : (
-                  <>
-                    Place Order ₹{cartTotal + feesBreakdown.totalDeliveryFee}
-                  </>
-                )}
-              </Button>
+                  <Button
+                    onClick={startPayPalSimulation}
+                    disabled={isPlacingOrder || cartItems.length === 0}
+                    className="w-full rounded-2xl h-14 font-black text-lg bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center justify-center gap-2 border-0"
+                  >
+                    Pay with PayPal (Sandbox)
+                  </Button>
+                )
+              )}
 
               <p className="text-[10px] text-center text-gray-400 font-medium px-4">
                 By clicking "Place Order", you agree to our Terms of Service and Privacy Policy.
@@ -630,6 +821,154 @@ export default function CheckoutPage() {
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SIMULATED PAYPAL DIALOG */}
+      <Dialog open={isPayPalModalOpen} onOpenChange={setIsPayPalModalOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl bg-white">
+          <DialogHeader className="sr-only">
+            <DialogTitle>PayPal Sandbox Checkout</DialogTitle>
+            <DialogDescription>Simulated sandbox billing gateway</DialogDescription>
+          </DialogHeader>
+          {/* Custom PayPal Styled Header */}
+          <div className="bg-[#003087] p-6 text-white flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-black italic tracking-tighter text-[#0070ba]">
+                Pay<span className="text-[#00c5ff]">Pal</span>
+              </span>
+              <span className="text-xs text-white/50 border border-white/20 rounded-md px-1.5 py-0.5 ml-2 font-bold uppercase tracking-wider">Sandbox</span>
+            </div>
+            <div className="text-[10px] font-bold text-white/60 flex items-center gap-1">
+              🔒 Secure Connection
+            </div>
+          </div>
+
+          <form onSubmit={handlePayPalSimulationSubmit} className="p-8 space-y-6">
+            {payPalStep === 1 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-800">Pay with PayPal</h3>
+                  <p className="text-xs text-slate-400">Enter your email or mobile number to get started.</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Email or Mobile Number</Label>
+                  <Input
+                    type="email"
+                    required
+                    placeholder="email@example.com"
+                    value={payPalEmail}
+                    onChange={(e) => setPayPalEmail(e.target.value)}
+                    className="h-12 rounded-xl border-slate-200 focus:border-blue-500"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white rounded-full h-12 font-bold text-sm shadow-md border-0"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+
+            {payPalStep === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayPalStep(1)}
+                    className="text-xs text-blue-600 font-bold hover:underline mb-1"
+                  >
+                    ← Back ({payPalEmail})
+                  </button>
+                  <h3 className="text-xl font-bold text-slate-800">Enter your password</h3>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Password</Label>
+                  <Input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={payPalPassword}
+                    onChange={(e) => setPayPalPassword(e.target.value)}
+                    className="h-12 rounded-xl border-slate-200 focus:border-blue-500"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full bg-[#0070ba] hover:bg-[#005ea6] text-white rounded-full h-12 font-bold text-sm shadow-md border-0"
+                >
+                  Log In
+                </Button>
+              </div>
+            )}
+
+            {payPalStep === 3 && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-start border-b pb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Purchase Amount</h3>
+                    <p className="text-2xl font-black text-slate-900 mt-1">
+                      ₹{cartTotal + feesBreakdown.totalDeliveryFee}
+                      <span className="text-xs font-bold text-slate-400 ml-1.5">
+                        (~${((cartTotal + feesBreakdown.totalDeliveryFee) / 83).toFixed(2)} USD)
+                      </span>
+                    </p>
+                  </div>
+                  <span className="text-[10px] bg-slate-100 text-slate-600 rounded-full px-3 py-1 font-bold">
+                    {payPalEmail}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Choose funding source</Label>
+                  <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 bg-white border rounded-lg flex items-center justify-center font-bold text-[10px] text-blue-600 shadow-sm">
+                        Bank
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">PayPal Wallet Balance</p>
+                        <p className="text-[10px] text-slate-400">Available: $250.00 USD</p>
+                      </div>
+                    </div>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-[#ffc439] hover:bg-[#f4b31a] text-slate-900 rounded-full h-12 font-black text-sm shadow-md border-0 uppercase tracking-widest"
+                >
+                  Complete Purchase
+                </Button>
+              </div>
+            )}
+
+            {payPalStep === 4 && (
+              <div className="py-12 flex flex-col items-center justify-center gap-4 text-center">
+                {payPalLoading ? (
+                  <>
+                    <Loader2 className="w-12 h-12 text-[#0070ba] animate-spin" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Processing PayPal Payment...</p>
+                      <p className="text-xs text-slate-400 mt-1">Please do not close this window</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-16 w-16 bg-green-50 rounded-full border border-green-200 flex items-center justify-center text-green-600 animate-bounce">
+                      ✓
+                    </div>
+                    <div>
+                      <p className="text-base font-black text-slate-800">Payment Authorized!</p>
+                      <p className="text-xs text-slate-400 mt-1">Recording your order in SwasthRoute...</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </form>
         </DialogContent>
       </Dialog>
     </div>

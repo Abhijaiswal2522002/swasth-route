@@ -896,6 +896,58 @@ export class ApiClient {
       body: JSON.stringify({ amount }),
     });
   }
+
+  static async createPayPalOrder(amount: number) {
+    return this.request<any>('/payments/paypal/create-order', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    });
+  }
+
+  static async capturePayPalOrder(orderId: string) {
+    return this.request<any>('/payments/paypal/capture-order', {
+      method: 'POST',
+      body: JSON.stringify({ orderId }),
+    });
+  }
+
+  static async upgradePharmacyPlan(commissionRate: number) {
+    return this.request<any>('/pharmacies/upgrade-plan', {
+      method: 'POST',
+      body: JSON.stringify({ commissionRate }),
+    });
+  }
+
+  static async getNotifications() {
+    return this.request<any[]>('/notifications', {
+      method: 'GET',
+    });
+  }
+
+  static async markNotificationAsRead(id: string) {
+    return this.request<any>(`/notifications/${id}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  static async markAllNotificationsAsRead() {
+    return this.request<any>('/notifications/read-all', {
+      method: 'PUT',
+    });
+  }
+
+  static async deleteNotification(id: string) {
+    return this.request<any>(`/notifications/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async sendSupportMessage(message: string, history: any[]) {
+    return this.request<{ text: string }>('/support/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    });
+  }
 }
 
 export default ApiClient;

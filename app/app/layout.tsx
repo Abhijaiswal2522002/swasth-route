@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { useCart } from '@/lib/context/CartContext';
 
 import UserSidebar from '@/components/user/UserSidebar';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -29,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
            </div>
         </footer>
       </main>
+      <SupportChatWidget />
     </div>
   );
 }

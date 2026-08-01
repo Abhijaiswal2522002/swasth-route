@@ -15,6 +15,10 @@ import invoiceRoutes from './routes/invoices.js';
 import supplierRoutes from './routes/suppliers.js';
 import purchaseRoutes from './routes/purchases.js';
 import prescriptionRoutes from './routes/prescription.js';
+import paymentRoutes from './routes/payments.js';
+import notificationRoutes from './routes/notifications.js';
+import supportRoutes from './routes/support.js';
+import { startExpiryScheduler } from './services/expiryMonitor.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 
@@ -86,6 +90,9 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/purchases', purchaseRoutes);
 app.use('/api/prescription', prescriptionRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/support', supportRoutes);
 
 import os from 'os';
 
@@ -137,6 +144,7 @@ const PORT = process.env.PORT || 3001;
 
 const startServer = async () => {
   await connectDB();
+  startExpiryScheduler();
   httpServer.listen(PORT, () => {
     console.log(`SwasthRoute API running on port ${PORT}`);
   });

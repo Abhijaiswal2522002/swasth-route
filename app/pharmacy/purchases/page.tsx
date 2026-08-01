@@ -14,11 +14,59 @@ import {
 import Link from 'next/link';
 import ApiClient from '@/lib/api';
 import { format } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [activePaymentPurchase, setActivePaymentPurchase] = useState<any | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'Bank Transfer' | 'Card' | 'UPI' | 'PayPal'>('Bank Transfer');
+
+  const handleRecordPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePaymentPurchase || !paymentAmount) return;
+
+    const amount = Number(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid payment amount');
+      return;
+    }
+
+    if (amount > activePaymentPurchase.balanceAmount) {
+      toast.error(`Amount exceeds outstanding balance (₹${activePaymentPurchase.balanceAmount})`);
+      return;
+    }
+
+    setIsPaying(true);
+    try {
+      const res = await ApiClient.recordPurchasePayment(activePaymentPurchase._id, amount);
+      if (res.data) {
+        toast.success('Payment recorded successfully');
+        setActivePaymentPurchase(null);
+        setPaymentAmount('');
+        fetchPurchases();
+      } else {
+        toast.error(res.error || 'Failed to record payment');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error recording payment');
+    } finally {
+      setIsPaying(false);
+    }
+  };
 
   useEffect(() => {
     fetchPurchases();
@@ -201,19 +249,34 @@ export default function PurchasesPage() {
                     {getStatusBadge(purchase.status)}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {purchase.status === 'ordered' && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleReceive(purchase._id)}
-                        className="rounded-xl border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 font-bold"
-                      >
-                        Receive Stock
-                      </Button>
-                    )}
-                    {purchase.status === 'received' && (
-                       <CheckCircle2 className="w-5 h-5 text-green-500 ml-auto" />
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      {purchase.status === 'ordered' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => handleReceive(purchase._id)}
+                          className="rounded-xl border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 font-bold h-9 text-xs"
+                        >
+                          Receive Stock
+                        </Button>
+                      )}
+                      {purchase.status === 'received' && (
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                      )}
+                      {purchase.balanceAmount > 0 && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            setActivePaymentPurchase(purchase);
+                            setPaymentAmount(purchase.balanceAmount.toString());
+                            setPaymentMethod('Bank Transfer');
+                          }}
+                          className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-9 text-xs border-0"
+                        >
+                          Pay Balance
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -228,6 +291,93 @@ export default function PurchasesPage() {
           </div>
         )}
       </div>
+
+      {/* SUPPLIER PAYMENT MODAL */}
+      <Dialog open={activePaymentPurchase !== null} onOpenChange={(open) => !open && setActivePaymentPurchase(null)}>
+        <DialogContent className="sm:max-w-[450px] rounded-3xl p-6 bg-white border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-slate-800">Record Payment</DialogTitle>
+            <DialogDescription className="font-semibold text-slate-400">
+              Record a payment to **{activePaymentPurchase?.supplierId?.name || 'Supplier'}** for Purchase Order #{activePaymentPurchase?.purchaseId}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleRecordPaymentSubmit} className="py-4 space-y-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Amount</p>
+                  <p className="text-sm font-black text-slate-700 mt-0.5">₹{activePaymentPurchase?.totalAmount.toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Balance Due</p>
+                  <p className="text-sm font-black text-[#f15e5e] mt-0.5">₹{activePaymentPurchase?.balanceAmount.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paymentAmount" className="text-xs font-bold text-slate-500 uppercase tracking-widest">Payment Amount (₹)</Label>
+                <Input
+                  id="paymentAmount"
+                  type="number"
+                  required
+                  min="1"
+                  max={activePaymentPurchase?.balanceAmount}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="e.g. 5000"
+                  className="h-12 rounded-xl border-slate-200 focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Payment Method</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Bank Transfer', 'Card', 'UPI', 'PayPal'].map((method) => (
+                    <button
+                      key={method}
+                      type="button"
+                      onClick={() => setPaymentMethod(method as any)}
+                      className={`py-3 rounded-xl border-2 transition-all font-bold text-xs ${
+                        paymentMethod === method
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
+                      }`}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4 flex gap-3 sm:justify-between border-t border-slate-100">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400"
+                onClick={() => setActivePaymentPurchase(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isPaying || !paymentAmount}
+                className="h-12 rounded-xl text-[10px] font-black uppercase tracking-widest px-8 shadow-lg shadow-primary/20 border-0"
+              >
+                {isPaying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Recording...
+                  </>
+                ) : (
+                  'Record Payment'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

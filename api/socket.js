@@ -18,6 +18,11 @@ export const initSocket = (httpServer, corsOptions) => {
       console.log(`Socket ${socket.id} joined room: ${roomId}`);
     });
 
+    socket.on('join-user', (userId) => {
+      socket.join(`user-${userId}`);
+      console.log(`Socket ${socket.id} joined user room: user-${userId}`);
+    });
+
     socket.on('join-order', (orderId) => {
       socket.join(`order-${orderId}`);
       console.log(`Socket ${socket.id} joined order-${orderId}`);

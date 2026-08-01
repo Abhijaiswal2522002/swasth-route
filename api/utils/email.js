@@ -151,3 +151,87 @@ export const sendWelcomeEmail = async (email, name, role) => {
   `;
   return sendBrevoEmail(email, name, subject, html);
 };
+
+export const sendExpiryAlertEmail = async (email, name, expiredItems, nearExpiryItems) => {
+  const subject = `⚠️ Pharmacy Inventory Alert: Expiry Warning - SwasthRoute`;
+  
+  let expiredListHtml = '';
+  if (expiredItems.length > 0) {
+    expiredListHtml = `
+      <h3 style="color: #dc2626; margin-top: 25px;">❌ Already Expired (${expiredItems.length} items)</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: left;">
+        <thead>
+          <tr style="background-color: #fef2f2; border-bottom: 2px solid #fee2e2; font-size: 13px;">
+            <th style="padding: 10px;">Medicine Name</th>
+            <th style="padding: 10px;">Batch</th>
+            <th style="padding: 10px;">Expiry Date</th>
+            <th style="padding: 10px; text-align: right;">Qty</th>
+          </tr>
+        </thead>
+        <tbody style="font-size: 13px; color: #4b5563;">
+          ${expiredItems.map(item => `
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 10px; font-weight: bold; color: #1f2937;">${item.medicineName}</td>
+              <td style="padding: 10px;">${item.batchNumber || 'N/A'}</td>
+              <td style="padding: 10px; color: #dc2626; font-weight: bold;">${new Date(item.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+              <td style="padding: 10px; text-align: right; font-weight: bold;">${item.quantity}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  let nearExpiryListHtml = '';
+  if (nearExpiryItems.length > 0) {
+    nearExpiryListHtml = `
+      <h3 style="color: #d97706; margin-top: 25px;">⚠️ Nearing Expiry - within 30 Days (${nearExpiryItems.length} items)</h3>
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: left;">
+        <thead>
+          <tr style="background-color: #fffbeb; border-bottom: 2px solid #fef3c7; font-size: 13px;">
+            <th style="padding: 10px;">Medicine Name</th>
+            <th style="padding: 10px;">Batch</th>
+            <th style="padding: 10px;">Expiry Date</th>
+            <th style="padding: 10px; text-align: right;">Qty</th>
+          </tr>
+        </thead>
+        <tbody style="font-size: 13px; color: #4b5563;">
+          ${nearExpiryItems.map(item => `
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 10px; font-weight: bold; color: #1f2937;">${item.medicineName}</td>
+              <td style="padding: 10px;">${item.batchNumber || 'N/A'}</td>
+              <td style="padding: 10px; color: #d97706; font-weight: bold;">${new Date(item.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+              <td style="padding: 10px; text-align: right; font-weight: bold;">${item.quantity}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  const html = `
+    <div style="font-family: sans-serif; padding: 30px; color: #374151; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; background-color: #ffffff;">
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 1px solid #f3f4f6; padding-bottom: 20px;">
+        <h1 style="color: #0d9488; margin: 0; font-size: 28px; font-weight: 800;">SwasthRoute</h1>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 5px; text-transform: uppercase; tracking-widest: 0.1em; font-weight: bold;">Automated Inventory Monitor</p>
+      </div>
+      <h2 style="color: #1f2937; font-size: 18px; font-weight: 700; margin-bottom: 15px;">Inventory Expiry Alert</h2>
+      <p>Hello ${name},</p>
+      <p style="line-height: 1.6;">Our automated compliance scan has detected expired or near-expiry batches in your store inventory. Please review the lists below and update your stock immediately to maintain patient safety.</p>
+      
+      ${expiredListHtml}
+      ${nearExpiryListHtml}
+      
+      <div style="margin: 40px 0; text-align: center;">
+        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/pharmacy/expiry" style="background-color: #0d9488; color: white; padding: 14px 35px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2);">Manage Store Expiry</a>
+      </div>
+      
+      <hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 30px 0;" />
+      <div style="text-align: center; font-size: 12px; color: #9ca3af;">
+        <p>&copy; ${new Date().getFullYear()} SwasthRoute. All rights reserved.</p>
+        <p>This is an automated system notification. Please do not reply directly to this email.</p>
+      </div>
+    </div>
+  `;
+  return sendBrevoEmail(email, name, subject, html, 'SwasthRoute Inventory');
+};

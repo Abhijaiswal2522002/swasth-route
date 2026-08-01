@@ -105,6 +105,7 @@ router.post('/create', verifyToken, async (req, res) => {
         platformFee: pricing.platformFee
       },
       paymentMethod,
+      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'completed',
       notes,
       estimatedDeliveryTime: pricing.estimatedMinutes,
     });

@@ -351,5 +351,28 @@ router.get('/:id/medicines', async (req, res) => {
   }
 });
 
+// Upgrade pharmacy plan / commission rate
+router.post('/upgrade-plan', verifyPharmacy, async (req, res) => {
+  try {
+    const { commissionRate } = req.body;
+    if (commissionRate === undefined || isNaN(commissionRate)) {
+      return res.status(400).json({ error: 'Valid commissionRate is required' });
+    }
+
+    const pharmacy = await Pharmacy.findById(req.pharmacy.id);
+    if (!pharmacy) return res.status(404).json({ error: 'Pharmacy not found' });
+
+    pharmacy.commissionRate = Number(commissionRate);
+    await pharmacy.save();
+
+    res.json({
+      message: 'Plan upgraded successfully',
+      commissionRate: pharmacy.commissionRate
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

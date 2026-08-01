@@ -217,6 +217,7 @@ router.post('/:id/confirm-offer', verifyToken, async (req, res) => {
         platformFee: pricing.platformFee
       },
       paymentMethod: medicineRequest.paymentMethod.toLowerCase() === 'prepaid' ? 'card' : 'cod',
+      paymentStatus: medicineRequest.paymentMethod.toLowerCase() === 'prepaid' ? 'completed' : 'pending',
       notes: `Fulfillment for Request #${requestId}`,
       estimatedDeliveryTime: pricing.estimatedMinutes,
     });

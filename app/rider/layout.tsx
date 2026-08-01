@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import ActiveOrderIndicator from '@/components/rider/ActiveOrderIndicator';
 
 import RiderSidebar from '@/components/rider/RiderSidebar';
+import SupportChatWidget from '@/components/SupportChatWidget';
 
 function RiderLayoutContent({ children }: { children: React.ReactNode }) {
   const { isLoading, activeOrder } = useRider();
@@ -44,10 +45,16 @@ function RiderLayoutContent({ children }: { children: React.ReactNode }) {
            <div className="flex items-center gap-4">
               <a href="#" className="hover:text-orange-600 transition-colors">Safety Protocol</a>
               <span className="opacity-20">/</span>
-              <a href="#" className="hover:text-orange-600 transition-colors">Fleet Support</a>
+              <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('open-support-chat'))}
+                className="hover:text-orange-600 transition-colors cursor-pointer bg-transparent border-0 p-0 text-[10px] font-bold uppercase tracking-widest text-gray-400"
+              >
+                Fleet Support
+              </button>
            </div>
         </footer>
       </main>
+      <SupportChatWidget />
     </div>
   );
 }
