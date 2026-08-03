@@ -25,6 +25,13 @@ function LoginContent() {
     password: '',
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isElectron, setIsElectron] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+      setIsElectron(true);
+    }
+  }, []);
 
   const validateForm = () => {
     if (!formData.email.trim()) {
@@ -66,6 +73,15 @@ function LoginContent() {
 
     try {
       const user = await login(formData.email, formData.password);
+      
+      if (isElectron && user.role !== 'pharmacy' && user.role !== 'admin') {
+        // Enforce pharmacy ERP role constraints on desktop app
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        setLocalError('This desktop client is reserved exclusively for Pharmacy ERP merchants. Please use the mobile app or web browser for patient/rider logins.');
+        return;
+      }
+
       if (user.role === 'admin') {
         router.push('/admin');
       } else if (user.role === 'pharmacy') {
@@ -92,9 +108,11 @@ function LoginContent() {
   />
   <div>
     <div className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            SwasthRoute
+            {isElectron ? 'SwasthRoute ERP' : 'SwasthRoute'}
           </div>
-          <p className="text-muted-foreground text-sm">Log in to access emergency medicine delivery</p>
+          <p className="text-muted-foreground text-sm">
+            {isElectron ? 'Log in to access your pharmacy merchant console' : 'Log in to access emergency medicine delivery'}
+          </p>
         </div>
   </div>
   </div>
@@ -164,24 +182,28 @@ function LoginContent() {
         </form>
 
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-primary/10" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="px-2 bg-card/80 text-muted-foreground">New to SwasthRoute?</span>
-          </div>
-        </div>
+        {!isElectron && (
+          <>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-primary/10" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="px-2 bg-card/80 text-muted-foreground">New to SwasthRoute?</span>
+              </div>
+            </div>
 
-        <Link href={`/auth/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full border-primary/20 hover:bg-primary/5 hover:border-primary/40"
-          >
-            Create Account
-          </Button>
-        </Link>
+            <Link href={`/auth/signup${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-primary/20 hover:bg-primary/5 hover:border-primary/40"
+              >
+                Create Account
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
     </Card>
   );

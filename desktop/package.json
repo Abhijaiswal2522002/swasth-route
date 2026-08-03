@@ -1,0 +1,55 @@
+{
+  "name": "swasthroute-desktop",
+  "version": "1.0.0",
+  "description": "Desktop ERP Client for SwasthRoute Pharmacy and Emergency Logistics",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-packager . SwasthRoute --platform=win32 --arch=x64 --overwrite --out=dist",
+    "build": "electron-builder --win --x64"
+  },
+  "keywords": [
+    "electron",
+    "swasthroute",
+    "erp",
+    "pharmacy"
+  ],
+  "author": "SwasthRoute Team",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "build": {
+    "appId": "com.swasthroute.app",
+    "productName": "SwasthRoute",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SwasthRoute ERP"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "offline.html",
+      "assets/**/*",
+      "package.json"
+    ]
+  }
+}

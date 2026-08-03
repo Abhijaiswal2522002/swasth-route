@@ -29,6 +29,13 @@ import PrescriptionAnalysisDialog from '@/components/PrescriptionAnalysisDialog'
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+      window.location.href = '/pharmacy';
+    }
+  }, []);
+
   const { selectedLocation, setSelectedLocation, isLoading: isLocationLoading } = useLocation();
   const [profile, setProfile] = useState<any>(null);
   const [activeOrder, setActiveOrder] = useState<any>(null);

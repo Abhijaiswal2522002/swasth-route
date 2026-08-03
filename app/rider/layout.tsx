@@ -22,6 +22,12 @@ function RiderLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && 'electronAPI' in window) {
+      window.location.href = '/pharmacy';
+    }
+  }, []);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
