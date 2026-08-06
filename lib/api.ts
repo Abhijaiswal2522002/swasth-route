@@ -948,6 +948,83 @@ export class ApiClient {
       body: JSON.stringify({ message, history }),
     });
   }
+
+  // SOS Emergency Endpoints
+  static async createSosRequest(formData: FormData) {
+    return this.request<any>('/sos', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  static async getActiveSosRequest() {
+    return this.request<any>('/sos/active');
+  }
+
+  static async getNearbySosRequests() {
+    return this.request<any[]>('/sos/pharmacy/nearby');
+  }
+
+  static async submitSosOffer(sosId: string, price: number, estimatedMinutes: number, notes?: string) {
+    return this.request<any>(`/sos/${sosId}/offer`, {
+      method: 'POST',
+      body: JSON.stringify({ price, estimatedMinutes, notes }),
+    });
+  }
+
+  static async acceptSosOffer(sosId: string, offerId: string) {
+    return this.request<any>(`/sos/${sosId}/accept-offer`, {
+      method: 'POST',
+      body: JSON.stringify({ offerId }),
+    });
+  }
+
+  static async cancelSosRequest(sosId: string) {
+    return this.request<any>(`/sos/${sosId}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  // Ambulance Emergency Endpoints
+  static async createAmbulanceBooking(payload: {
+    latitude: number;
+    longitude: number;
+    pickupAddress: string;
+    ambulanceType: 'basic' | 'advanced' | 'icu';
+    hospital: { name: string; latitude: number; longitude: number };
+  }) {
+    return this.request<any>('/ambulance/booking/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async getActiveAmbulanceBooking() {
+    return this.request<any>('/ambulance/booking/active');
+  }
+
+  static async getActiveDriverAmbulanceTrip() {
+    return this.request<any>('/ambulance/driver/active');
+  }
+
+  static async acceptAmbulanceBooking(bookingId: string) {
+    return this.request<any>(`/ambulance/booking/${bookingId}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  static async updateAmbulanceTripStatus(bookingId: string, status: string) {
+    return this.request<any>(`/ambulance/booking/${bookingId}/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  static async cancelAmbulanceBooking(bookingId: string) {
+    return this.request<any>(`/ambulance/booking/${bookingId}/cancel`, {
+      method: 'POST',
+    });
+  }
 }
 
 export default ApiClient;

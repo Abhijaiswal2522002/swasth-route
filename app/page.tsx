@@ -24,6 +24,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MapBox from '@/components/MapBox';
 import ApiClient from '@/lib/api';
+import SosEmergencyDialog from '@/components/SosEmergencyDialog';
+import AmbulanceBookingDialog from '@/components/AmbulanceBookingDialog';
 
 interface Pharmacy {
   _id: string;
@@ -52,6 +54,8 @@ export default function HomePage() {
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [filteredPharmacies, setFilteredPharmacies] = useState<Pharmacy[]>([]);
   const [isLoadingPharmacies, setIsLoadingPharmacies] = useState(false);
+  const [isSosOpen, setIsSosOpen] = useState(false);
+  const [isAmbulanceOpen, setIsAmbulanceOpen] = useState(false);
 
   useEffect(() => {
     const fetchPharmacies = async () => {
@@ -369,6 +373,28 @@ export default function HomePage() {
         </section>
       </main>
 
+      {user && user.role === 'user' && (
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end sm:flex-row gap-3">
+          <button
+            onClick={() => setIsAmbulanceOpen(true)}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-red-800 to-rose-700 hover:from-red-955 hover:to-rose-800 text-white rounded-full px-6 py-4 shadow-2xl hover:shadow-rose-600/30 font-black uppercase tracking-widest text-[11px] transition-all hover:scale-105 border-2 border-white dark:border-zinc-900 group"
+          >
+            <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping" />
+            🚑 Ambulance SOS
+          </button>
+          
+          <button
+            onClick={() => setIsSosOpen(true)}
+            className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-full px-6 py-4 shadow-2xl hover:shadow-red-600/30 font-black uppercase tracking-widest text-[11px] transition-all hover:scale-105 border-2 border-white dark:border-zinc-900 group"
+          >
+            <span className="w-2.5 h-2.5 bg-white rounded-full animate-ping" />
+            🚨 Emergency SOS
+          </button>
+
+          <SosEmergencyDialog isOpen={isSosOpen} onOpenChange={setIsSosOpen} />
+          <AmbulanceBookingDialog isOpen={isAmbulanceOpen} onOpenChange={setIsAmbulanceOpen} />
+        </div>
+      )}
     </div>
   );
 }

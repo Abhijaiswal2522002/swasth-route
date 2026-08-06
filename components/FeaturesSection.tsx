@@ -1,4 +1,4 @@
-import { MapPin, Clock, Shield, TrendingUp, Users, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
+import { MapPin, Clock, Shield, TrendingUp, Users, Zap, CheckCircle2, ArrowRight, Truck } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 const features = [
@@ -13,6 +13,12 @@ const features = [
     title: 'Emergency Delivery',
     description: 'Sub-15m delivery windows ensured by dynamic rider dispatching and priority emergency order lanes.',
     badge: 'Priority Lanes',
+  },
+  {
+    icon: Truck,
+    title: 'Ambulance Dispatch',
+    description: 'Instant coordinate locking and dynamic dispatch matching patients to the nearest BLS, ALS, and ICU ambulances.',
+    badge: 'Emergency Ride',
   },
   {
     icon: Shield,
@@ -31,12 +37,6 @@ const features = [
     title: 'Smart Inventory',
     description: 'Pharmacies benefit from automated expiry alerts, multi-batch tracking, and intelligent restocking insights.',
     badge: 'New Feature',
-  },
-  {
-    icon: Users,
-    title: 'Digital POS',
-    description: 'Professional billing and inventory management for local pharmacies, bridging the gap between offline and online.',
-    badge: 'Enterprise',
   },
 ];
 

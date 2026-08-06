@@ -26,6 +26,8 @@ import { reverseGeocode, getCurrentLocation, forwardGeocode, type GeocodedResult
 import MapBox from '@/components/MapBox';
 import { useLocation } from '@/lib/context/LocationContext';
 import PrescriptionAnalysisDialog from '@/components/PrescriptionAnalysisDialog';
+import SosEmergencyDialog from '@/components/SosEmergencyDialog';
+import AmbulanceBookingDialog from '@/components/AmbulanceBookingDialog';
 
 export default function AppHomeDashboard() {
   const { user } = useAuth();
@@ -60,6 +62,8 @@ export default function AppHomeDashboard() {
   const [isPrescriptionDialogOpen, setIsPrescriptionDialogOpen] = useState(false);
   const [isGeminiActive, setIsGeminiActive] = useState(false);
   const [isOcrUnavailable, setIsOcrUnavailable] = useState(false);
+  const [isSosOpen, setIsSosOpen] = useState(false);
+  const [isAmbulanceOpen, setIsAmbulanceOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -324,7 +328,10 @@ export default function AppHomeDashboard() {
         <div className="md:col-span-5 lg:col-span-4 space-y-6">
 
           {/* EMERGENCY ORDER BUTTON */}
-          <button className="w-full relative overflow-hidden group rounded-2xl md:rounded-3xl bg-red-600 text-white p-5 md:p-6 shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_12px_40px_rgb(239,68,68,0.4)] transition-all active:scale-[0.98]">
+          <button 
+            onClick={() => setIsSosOpen(true)}
+            className="w-full relative overflow-hidden group rounded-2xl md:rounded-3xl bg-red-600 text-white p-5 md:p-6 shadow-[0_8px_30px_rgb(239,68,68,0.3)] hover:shadow-[0_12px_40px_rgb(239,68,68,0.4)] transition-all active:scale-[0.98]"
+          >
             <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="absolute -right-4 -top-4 w-32 h-32 md:w-48 md:h-48 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 animate-pulse"></div>
 
@@ -336,6 +343,28 @@ export default function AppHomeDashboard() {
                 <div className="text-left space-y-1">
                   <h2 className="text-xl md:text-2xl font-bold tracking-wide text-white uppercase">Emergency</h2>
                   <p className="text-white/90 text-[11px] md:text-xs font-semibold uppercase tracking-wider">Order Medicine Fast</p>
+                </div>
+              </div>
+              <ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-white opacity-90 transition-transform group-hover:translate-x-1" />
+            </div>
+          </button>
+
+          {/* EMERGENCY AMBULANCE BUTTON */}
+          <button 
+            onClick={() => setIsAmbulanceOpen(true)}
+            className="w-full relative overflow-hidden group rounded-2xl md:rounded-3xl bg-gradient-to-r from-red-800 to-rose-700 text-white p-5 md:p-6 shadow-[0_8px_30px_rgb(225,29,72,0.3)] hover:shadow-[0_12px_40px_rgb(225,29,72,0.4)] transition-all active:scale-[0.98]"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="absolute -right-4 -top-4 w-32 h-32 md:w-48 md:h-48 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 animate-pulse"></div>
+
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 md:p-4 bg-white/20 rounded-xl md:rounded-2xl backdrop-blur-sm">
+                  <Truck className="w-8 h-8 md:w-10 md:h-10 text-white" />
+                </div>
+                <div className="text-left space-y-1">
+                  <h2 className="text-xl md:text-2xl font-bold tracking-wide text-white uppercase">Ambulance</h2>
+                  <p className="text-white/90 text-[11px] md:text-xs font-semibold uppercase tracking-wider">Book Emergency Ride</p>
                 </div>
               </div>
               <ChevronRight className="w-6 h-6 md:w-8 md:h-8 text-white opacity-90 transition-transform group-hover:translate-x-1" />
@@ -683,6 +712,17 @@ export default function AppHomeDashboard() {
         onAction={handlePrescriptionAction}
       />
 
+      {/* SOS EMERGENCY DIALOG */}
+      <SosEmergencyDialog
+        isOpen={isSosOpen}
+        onOpenChange={setIsSosOpen}
+      />
+
+      {/* AMBULANCE EMERGENCY DIALOG */}
+      <AmbulanceBookingDialog
+        isOpen={isAmbulanceOpen}
+        onOpenChange={setIsAmbulanceOpen}
+      />
     </div>
   );
 }

@@ -18,6 +18,8 @@ import prescriptionRoutes from './routes/prescription.js';
 import paymentRoutes from './routes/payments.js';
 import notificationRoutes from './routes/notifications.js';
 import supportRoutes from './routes/support.js';
+import sosRoutes from './routes/sos.js';
+import ambulanceRoutes from './routes/ambulance.js';
 import { startExpiryScheduler } from './services/expiryMonitor.js';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
@@ -93,6 +95,8 @@ app.use('/api/prescription', prescriptionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/ambulance', ambulanceRoutes);
 
 import os from 'os';
 

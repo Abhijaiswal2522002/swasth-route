@@ -10,7 +10,7 @@ const RiderSchema = new mongoose.Schema(
     },
     vehicleType: {
       type: String,
-      enum: ['bicycle', 'bike', 'scooter', 'car'],
+      enum: ['bicycle', 'bike', 'scooter', 'car', 'ambulance_basic', 'ambulance_advanced', 'ambulance_icu'],
       default: 'bike',
     },
     vehicleNumber: {

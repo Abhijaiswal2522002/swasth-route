@@ -5,10 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pill, RefreshCw, Clock, MapPin, HandHelping, User, Info } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Pill, RefreshCw, Clock, MapPin, HandHelping, User, Info, ShieldAlert, Volume2, Camera, Play, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import ApiClient from '@/lib/api';
 import { toast } from 'sonner';
+import { io } from 'socket.io-client';
 import {
   Dialog,
   DialogContent,
@@ -28,11 +29,67 @@ export default function PharmacyRequestsPage() {
   const [quotePrice, setQuotePrice] = useState<string>('');
   const [expectedDate, setExpectedDate] = useState<string>('');
 
+  // SOS Emergency States
+  const [sosRequests, setSosRequests] = useState<any[]>([]);
+  const [isSosModalOpen, setIsSosModalOpen] = useState(false);
+  const [selectedSos, setSelectedSos] = useState<any>(null);
+  const [sosPrice, setSosPrice] = useState('');
+  const [sosMinutes, setSosMinutes] = useState('');
+  const [sosNotes, setSosNotes] = useState('');
+  const [isSosSubmitting, setIsSosSubmitting] = useState(false);
+  const [pharmacyId, setPharmacyId] = useState<string | null>(null);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     if (user) {
       fetchNearbyRequests();
+      fetchNearbySosRequests();
     }
   }, [user]);
+
+  // Live Socket integration for real-time SOS broadcasts
+  useEffect(() => {
+    if (pharmacyId) {
+      const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const socket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on('connect', () => {
+        console.log('[Pharmacy SOS Socket] Connected for pharmacy:', pharmacyId);
+      });
+
+      socket.on(`new-sos-broadcast-${pharmacyId}`, (data) => {
+        toast.error('🚨 EMERGENCY SOS BROADCAST RECEIVED!');
+        fetchNearbySosRequests();
+      });
+
+      socket.on(`sos-request-accepted-${pharmacyId}`, (data) => {
+        toast.success('🎉 Your emergency offer was accepted! Dispatching order.');
+        fetchNearbySosRequests();
+      });
+
+      socket.on(`sos-request-closed-${pharmacyId}`, (data) => {
+        fetchNearbySosRequests();
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    }
+  }, [pharmacyId]);
+
+  const fetchNearbySosRequests = async () => {
+    try {
+      const res = await ApiClient.getNearbySosRequests();
+      if (res.data) {
+        setSosRequests(res.data);
+      }
+    } catch (err) {
+      console.error('Error fetching nearby SOS requests:', err);
+    }
+  };
 
   const fetchNearbyRequests = async () => {
     setIsLoading(true);
@@ -46,6 +103,7 @@ export default function PharmacyRequestsPage() {
         // [lng, lat] format in MongoDB GeoJSON
         lng = profileRes.data.location.coordinates[0];
         lat = profileRes.data.location.coordinates[1];
+        setPharmacyId(profileRes.data._id);
       }
       
       const res = await ApiClient.getNearbyMedicineRequests(lat, lng, 20); // 20km radius instead of 10 for better testing
@@ -94,6 +152,47 @@ export default function PharmacyRequestsPage() {
     }
   };
 
+  const handleSosOfferClick = (sos: any) => {
+    setSelectedSos(sos);
+    setSosPrice('');
+    setSosMinutes('');
+    setSosNotes('');
+    setIsSosModalOpen(true);
+  };
+
+  const handleConfirmSosOffer = async () => {
+    if (!sosPrice || parseFloat(sosPrice) <= 0) {
+      toast.error('Please enter a valid price quote');
+      return;
+    }
+    if (!sosMinutes || parseInt(sosMinutes) <= 0) {
+      toast.error('Please enter estimated minutes for delivery');
+      return;
+    }
+
+    setIsSosSubmitting(true);
+    try {
+      const res = await ApiClient.submitSosOffer(
+        selectedSos._id,
+        parseFloat(sosPrice),
+        parseInt(sosMinutes),
+        sosNotes
+      );
+      if (res.data) {
+        toast.success('Emergency quote sent successfully!');
+        setIsSosModalOpen(false);
+        fetchNearbySosRequests();
+      } else {
+        toast.error(res.error || 'Failed to submit quote');
+      }
+    } catch (err) {
+      console.error('Error submitting SOS offer:', err);
+      toast.error('An error occurred while submitting quote');
+    } finally {
+      setIsSosSubmitting(false);
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -112,6 +211,79 @@ export default function PharmacyRequestsPage() {
         </div>
         <p className="text-gray-500 font-medium">Fulfill medicine requests from users in your local area (10km radius).</p>
       </div>
+
+      {/* SOS EMERGENCY SECTION */}
+      {sosRequests.length > 0 && (
+        <div className="mb-10 p-6 rounded-3xl bg-rose-50/50 border border-rose-200 shadow-md space-y-4">
+          <div className="flex items-center gap-2 text-red-600">
+            <ShieldAlert className="w-6 h-6 animate-bounce" />
+            <h2 className="text-xl font-black uppercase tracking-tight">Active Emergency SOS Broadcasts ({sosRequests.length})</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sosRequests.map((sos) => {
+              const alreadyOffered = sos.offers?.some((o: any) => o.pharmacyId === pharmacyId);
+              return (
+                <div key={sos._id} className="p-5 rounded-2xl bg-white border border-red-100 shadow-sm flex flex-col justify-between gap-4">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-full">
+                        Emergency Broadcaster
+                      </span>
+                      <span className="text-[9px] font-bold text-zinc-400">
+                        {new Date(sos.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {sos.textNote && (
+                      <p className="text-sm font-bold text-zinc-800 mb-3">"{sos.textNote}"</p>
+                    )}
+
+                    {/* Prescription & Voice Note Attachments */}
+                    <div className="flex gap-2 flex-wrap mb-3">
+                      {sos.prescriptionUrl && (
+                        <a href={sos.prescriptionUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 hover:bg-blue-100">
+                          <Camera className="w-3.5 h-3.5" /> View Rx
+                        </a>
+                      )}
+                      {sos.voiceNoteUrl && (
+                        <button
+                          onClick={() => {
+                            if (audioRef.current) {
+                              audioRef.current.src = sos.voiceNoteUrl;
+                              audioRef.current.play();
+                            }
+                          }}
+                          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100 hover:bg-purple-100"
+                        >
+                          <Play className="w-3.5 h-3.5" /> Play Audio
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-zinc-50 pt-3">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">
+                      COD Preferred
+                    </span>
+                    {alreadyOffered ? (
+                      <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+                        Quote Submitted
+                      </span>
+                    ) : (
+                      <Button
+                        onClick={() => handleSosOfferClick(sos)}
+                        className="bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 px-4 text-[10px] font-black uppercase tracking-widest border-0"
+                      >
+                        Submit Quote
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <audio ref={audioRef} className="hidden" />
+        </div>
+      )}
 
       {requests.length === 0 ? (
         <div className="py-20 text-center bg-white rounded-3xl border border-gray-100 shadow-sm">
@@ -245,6 +417,80 @@ export default function PharmacyRequestsPage() {
                 </>
               ) : (
                 'Send Offer to User'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SOS Offer Modal */}
+      <Dialog open={isSosModalOpen} onOpenChange={setIsSosModalOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl border-0 shadow-2xl overflow-hidden p-0 bg-white">
+          <div className="bg-red-600 px-6 py-5 text-white flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black tracking-tight uppercase">Submit Emergency Quote</h3>
+              <p className="text-[10px] text-white/80 font-bold uppercase tracking-widest">Active SOS Response</p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="p-5 bg-red-50/50 rounded-2xl border border-red-100 space-y-2">
+              <span className="text-[10px] font-black text-red-500 uppercase tracking-widest block">SOS Request Details</span>
+              <p className="text-sm font-bold text-zinc-800 italic">"{selectedSos?.textNote || 'SOS Medicine Request'}"</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sosPrice" className="text-xs font-black text-zinc-400 uppercase tracking-widest">Your Price Quote (₹)</Label>
+              <Input
+                id="sosPrice"
+                type="number"
+                placeholder="Enter price in ₹"
+                value={sosPrice}
+                onChange={(e) => setSosPrice(e.target.value)}
+                className="rounded-2xl border-2 border-zinc-100 font-black h-14 text-xl px-4 focus:border-red-500/50 focus:ring-red-500/10 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all text-black"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sosMinutes" className="text-xs font-black text-zinc-400 uppercase tracking-widest">Est. Delivery Time (Mins)</Label>
+              <Input
+                id="sosMinutes"
+                type="number"
+                placeholder="e.g. 15"
+                value={sosMinutes}
+                onChange={(e) => setSosMinutes(e.target.value)}
+                className="rounded-2xl border-2 border-zinc-100 font-bold h-14 text-sm px-4 focus:border-red-500/50 focus:ring-red-500/10 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all text-black"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sosNotes" className="text-xs font-black text-zinc-400 uppercase tracking-widest">Optional Notes</Label>
+              <Input
+                id="sosNotes"
+                type="text"
+                placeholder="e.g. In stock, ready to dispatch"
+                value={sosNotes}
+                onChange={(e) => setSosNotes(e.target.value)}
+                className="rounded-2xl border-2 border-zinc-100 font-medium h-12 text-sm px-4 focus:border-red-500/50 focus:ring-red-500/10 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all text-black"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 bg-zinc-50 border-t border-zinc-100">
+            <Button
+              onClick={handleConfirmSosOffer}
+              disabled={isSosSubmitting}
+              className="w-full h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-xs border-0 shadow-lg shadow-red-600/10"
+            >
+              {isSosSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Submitting...
+                </>
+              ) : (
+                'Submit Emergency Quote'
               )}
             </Button>
           </DialogFooter>
