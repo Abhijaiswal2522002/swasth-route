@@ -64,10 +64,19 @@ export function useGeolocation(): GeolocationState {
               longitude: parsedLocation.longitude,
               accuracy: 0,
             });
+            return;
           } catch (e) {
             console.error('[v0] Failed to parse cached location:', e);
           }
         }
+
+        // Ultimate fallback to Mumbai coordinates for testing consistency
+        console.warn('[v0] Geolocation denied. Falling back to default Mumbai coordinates.');
+        setLocation({
+          latitude: 19.0760,
+          longitude: 72.8777,
+          accuracy: 0,
+        });
       },
       {
         enableHighAccuracy: false,

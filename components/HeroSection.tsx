@@ -7,7 +7,7 @@ import { useGeolocation } from '@/lib/hooks/useGeolocation';
 import {
   MapPin, Clock, Zap, ShieldCheck,
   ArrowRight, Building2, Navigation,
-  Package, Users
+  Package, Users, Truck
 } from 'lucide-react';
 
 export default function HeroSection() {
@@ -73,11 +73,11 @@ export default function HeroSection() {
               </div>
               <div className="flex gap-4">
                 <div className="w-12 h-12 rounded-xl bg-white shadow-md flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-6 h-6 text-green-500" />
+                  <Truck className="w-6 h-6 text-red-500 animate-pulse" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900">Secure & Reliable</h4>
-                  <p className="text-xs text-slate-400 font-medium">Data security, GST billing & analytics</p>
+                  <h4 className="font-bold text-slate-900">24/7 Ambulance Dispatch</h4>
+                  <p className="text-xs text-slate-400 font-medium">Basic, Advanced, and ICU medical transit</p>
                 </div>
               </div>
             </div>

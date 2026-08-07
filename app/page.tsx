@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, AlertCircle, ShoppingCart, Clock, CheckCircle } from 'lucide-react';
+import { Search, MapPin, AlertCircle, ShoppingCart, Clock, CheckCircle, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { PharmacyCard } from '@/components/PharmacyCard';
 import HeroSection from '@/components/HeroSection';
 import FeaturesSection from '@/components/FeaturesSection';
 import HowItWorks from '@/components/HowItWorks';
+import AmbulancePromo from '@/components/AmbulancePromo';
 import ForPharmacies from '@/components/ForPharmacies';
 import TrustSection from '@/components/TrustSection';
 import PartnerLogos from '@/components/PartnerLogos';
@@ -109,6 +110,7 @@ export default function HomePage() {
             <PartnerLogos />
             <HowItWorks />
             <FeaturesSection />
+            <AmbulancePromo />
             <ProductOverview />
             <PlatformShowcase />
             <DeliveryShowcase />
@@ -204,14 +206,54 @@ export default function HomePage() {
                   </div>
                 ) : (
                   <>
-                    <div className="space-y-6 mb-12">
+                    <div className="space-y-8 mb-12">
                       <div className="space-y-2">
                         <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                          Find Emergency Medicines
+                          SwasthRoute Emergency Hub
                         </h2>
                         <p className="text-xl text-muted-foreground">
-                          Search for medicines and find nearby pharmacies with real-time availability
+                          Direct live dispatch routing for medicine shortages and medical transit.
                         </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Medicine SOS Card */}
+                        <div 
+                          onClick={() => setIsSosOpen(true)}
+                          className="cursor-pointer group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-red-600 to-rose-600 p-6 text-white shadow-xl hover:shadow-red-650/20 transition-all hover:-translate-y-1"
+                        >
+                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-in duration-300"></div>
+                          <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 animate-pulse"></div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                              <AlertCircle className="w-8 h-8 text-white" />
+                            </div>
+                            <div className="text-left space-y-1">
+                              <h3 className="text-xl font-bold tracking-wide uppercase">Emergency SOS</h3>
+                              <p className="text-white/80 text-xs font-semibold leading-relaxed">Broadcast shortages directly to nearest open pharmacies.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ambulance Card */}
+                        <div 
+                          onClick={() => setIsAmbulanceOpen(true)}
+                          className="cursor-pointer group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-red-850 to-rose-750 p-6 text-white shadow-xl hover:shadow-rose-650/20 transition-all hover:-translate-y-1"
+                        >
+                          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity animate-in duration-300"></div>
+                          <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/20 rounded-full blur-xl group-hover:bg-white/30 animate-pulse"></div>
+
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                              <Truck className="w-8 h-8 text-white" />
+                            </div>
+                            <div className="text-left space-y-1">
+                              <h3 className="text-xl font-bold tracking-wide uppercase">Ambulance Dispatch</h3>
+                              <p className="text-white/80 text-xs font-semibold leading-relaxed">Instantly book BLS, ALS, or ICU ambulance with live GPS locking.</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="relative group">

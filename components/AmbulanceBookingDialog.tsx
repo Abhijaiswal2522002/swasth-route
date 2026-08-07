@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -208,8 +209,10 @@ export default function AmbulanceBookingDialog({ isOpen, onOpenChange }: Ambulan
             <Truck className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black tracking-tight uppercase">Ambulance Dispatch</h2>
-            <p className="text-[10px] text-white/80 font-bold uppercase tracking-wider">Fastest Direct Trauma Logistics</p>
+            <DialogTitle className="text-lg font-black tracking-tight uppercase text-white">Ambulance Dispatch</DialogTitle>
+            <DialogDescription className="text-[10px] text-white/80 font-bold uppercase tracking-wider">
+              Fastest Direct Trauma Logistics
+            </DialogDescription>
           </div>
         </div>
 

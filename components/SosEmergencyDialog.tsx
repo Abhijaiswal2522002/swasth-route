@@ -323,8 +323,10 @@ export default function SosEmergencyDialog({ isOpen, onOpenChange }: SosEmergenc
             <ShieldAlert className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black tracking-tight uppercase">SOS Emergency Checkout</h2>
-            <p className="text-[10px] text-white/80 font-bold uppercase tracking-wider">Fastest Direct-to-Pharmacy Route</p>
+            <DialogTitle className="text-lg font-black tracking-tight uppercase text-white">SOS Emergency Checkout</DialogTitle>
+            <DialogDescription className="text-[10px] text-white/80 font-bold uppercase tracking-wider">
+              Fastest Direct-to-Pharmacy Route
+            </DialogDescription>
           </div>
         </div>
 
