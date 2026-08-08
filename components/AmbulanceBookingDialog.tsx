@@ -60,6 +60,14 @@ export default function AmbulanceBookingDialog({ isOpen, onOpenChange }: Ambulan
   const [booking, setBooking] = useState<any>(null);
   const [driverInfo, setDriverInfo] = useState<any>(null);
   const [tripStatus, setTripStatus] = useState<string>('pending');
+  const [emergencyDescription, setEmergencyDescription] = useState('');
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+
+  const toggleStepCompleted = (index: number) => {
+    setCompletedSteps(prev => 
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
+  };
 
   useEffect(() => {
     if (location) {
@@ -166,7 +174,8 @@ export default function AmbulanceBookingDialog({ isOpen, onOpenChange }: Ambulan
           name: selectedHospital.name,
           latitude: selectedHospital.latitude,
           longitude: selectedHospital.longitude
-        }
+        },
+        emergencyDescription
       });
 
       if (res.data) {
@@ -286,6 +295,17 @@ export default function AmbulanceBookingDialog({ isOpen, onOpenChange }: Ambulan
                 </select>
               </div>
 
+              {/* Emergency description input */}
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block px-1">Describe the Emergency (Optional)</Label>
+                <textarea
+                  placeholder="e.g. Chest pain, difficulty breathing, sudden collapse, bleeding..."
+                  value={emergencyDescription}
+                  onChange={(e) => setEmergencyDescription(e.target.value)}
+                  className="w-full bg-zinc-50 border-2 border-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 rounded-2xl p-4 text-sm font-semibold text-black dark:text-white outline-none focus:border-rose-500/50 transition-all resize-none h-20"
+                />
+              </div>
+
               <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3 text-amber-800 dark:bg-amber-950/10 dark:border-amber-900/30">
                 <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600" />
                 <p className="text-[10px] font-medium leading-relaxed">
@@ -388,6 +408,55 @@ export default function AmbulanceBookingDialog({ isOpen, onOpenChange }: Ambulan
                   >
                     <Phone className="w-4 h-4" />
                   </a>
+                </div>
+              )}
+
+              {/* AI First-Aid Checklist */}
+              {booking && (
+                <div className="p-5 rounded-2xl bg-zinc-950 text-white relative overflow-hidden border border-zinc-800/80 shadow-xl space-y-4">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-rose-450">🧠 AI First-Aid Companion</span>
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                      {completedSteps.length}/{booking.firstAidInstructions?.length || 4} Completed
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(booking.firstAidInstructions && booking.firstAidInstructions.length > 0
+                      ? booking.firstAidInstructions
+                      : [
+                          "Check patient responsiveness.",
+                          "Clear a flat path for the ambulance stretchers.",
+                          "Monitor heart rate and breathing pattern.",
+                          "Stay with the patient and keep them warm."
+                        ]
+                    ).map((instruction: string, idx: number) => {
+                      const isDone = completedSteps.includes(idx);
+                      return (
+                        <div 
+                          key={idx}
+                          onClick={() => toggleStepCompleted(idx)}
+                          className={`flex items-start gap-3 cursor-pointer p-2.5 rounded-xl transition-colors ${
+                            isDone ? 'bg-zinc-900/50 text-zinc-500 line-through' : 'hover:bg-zinc-900/50'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-md border-2 shrink-0 flex items-center justify-center transition-all ${
+                            isDone ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-zinc-700 bg-zinc-900'
+                          }`}>
+                            {isDone && <CheckCircle className="w-3.5 h-3.5" />}
+                          </div>
+                          <span className={`text-[11px] font-medium leading-relaxed ${isDone ? 'text-zinc-500' : 'text-zinc-200'}`}>
+                            {instruction}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

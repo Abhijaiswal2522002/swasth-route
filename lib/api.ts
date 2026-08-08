@@ -992,6 +992,7 @@ export class ApiClient {
     pickupAddress: string;
     ambulanceType: 'basic' | 'advanced' | 'icu';
     hospital: { name: string; latitude: number; longitude: number };
+    emergencyDescription?: string;
   }) {
     return this.request<any>('/ambulance/booking/create', {
       method: 'POST',

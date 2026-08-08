@@ -4,6 +4,7 @@ import Rider from '../models/Rider.js';
 import User from '../models/User.js';
 import AmbulanceBooking from '../models/AmbulanceBooking.js';
 import { getIO } from '../socket.js';
+import axios from 'axios';
 
 const router = express.Router();
 
@@ -21,10 +22,60 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return d;
 }
 
+function getDefaultGuidelines(ambulanceType) {
+  if (ambulanceType === 'icu') {
+    return [
+      "Keep the patient flat on their back unless breathing is labored.",
+      "Monitor pulse and check if the patient is responsive.",
+      "Clear a path for the ICU stretcher team.",
+      "Do not give the patient anything to eat or drink."
+    ];
+  } else if (ambulanceType === 'advanced') {
+    return [
+      "Keep the patient calm and encourage slow, deep breaths.",
+      "Loosen tight clothing around their neck or chest.",
+      "Gather any medical history or active prescriptions.",
+      "Stay with the patient and monitor their consciousness."
+    ];
+  }
+  return [
+    "Ensure the patient is in a safe, quiet location.",
+    "Stay by their side and reassure them.",
+    "Be ready to guide the ambulance crew to the patient.",
+    "Do not move the patient if a spinal injury is suspected."
+  ];
+}
+
+async function generateFirstAidGuidelines(ambulanceType, description) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.log('[Gemini First Aid] API key is missing. Using default guidelines.');
+    return getDefaultGuidelines(ambulanceType);
+  }
+
+  try {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const prompt = `You are an emergency medical response assistant. The patient is waiting for an ambulance of type "${ambulanceType}". Emergency description: "${description || 'unknown medical crisis'}". Provide a JSON list of exactly 4 clear, short, actionable first-aid instructions (maximum 15 words per instruction) for bystanders to perform right now. Focus on immediate safety, positioning, and vitals check. Do not write introductory or explanatory text. Output must be a valid JSON array of strings. Example: ["Keep the patient in a sitting position to aid breathing", "Loosen tight clothing around neck", "Gather all active medications", "Do not give any food or liquids"].`;
+
+    const response = await axios.post(geminiUrl, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    const rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (rawText) {
+      return JSON.parse(rawText.trim());
+    }
+  } catch (err) {
+    console.error('[Gemini First Aid] Failed to generate, falling back:', err.message);
+  }
+  return getDefaultGuidelines(ambulanceType);
+}
+
 // Create Ambulance Booking (Patient)
 router.post('/booking/create', verifyToken, async (req, res) => {
   try {
-    const { latitude, longitude, pickupAddress, ambulanceType, hospital } = req.body;
+    const { latitude, longitude, pickupAddress, ambulanceType, hospital, emergencyDescription } = req.body;
 
     if (!latitude || !longitude || !ambulanceType || !hospital) {
       return res.status(400).json({ error: 'Pickup location coordinates, ambulance type, and destination hospital are required' });
@@ -67,6 +118,9 @@ router.post('/booking/create', verifyToken, async (req, res) => {
 
     const matchedDriver = nearestDrivers[0];
 
+    // Generate First-Aid Instructions via Gemini
+    const firstAidInstructions = await generateFirstAidGuidelines(ambulanceType, emergencyDescription);
+
     // Create the booking
     const booking = new AmbulanceBooking({
       userId: req.user.id,
@@ -83,7 +137,9 @@ router.post('/booking/create', verifyToken, async (req, res) => {
         longitude: hospital.longitude,
       },
       price,
-      status: 'pending'
+      status: 'pending',
+      emergencyDescription: emergencyDescription || '',
+      firstAidInstructions
     });
 
     await booking.save();

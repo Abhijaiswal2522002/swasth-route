@@ -9,19 +9,47 @@
 
 ---
 
-## 🌟 Key Pillars
+## ✨ Core Platform Features
 
-### 📍 Geospatial Intelligence
-Uses MongoDB `2dsphere` indexing to perform lightning-fast coordinate-based searches. Patients find the nearest pharmacies within seconds during critical emergencies.
+SwasthRoute is a complete medical logistics, emergency dispatch, and pharmacy ERP ecosystem. Below is the detailed inventory of features:
 
-### 🛡️ Hardened Security
-Features a **"Verify-Before-Save"** registration Flow. Accounts are not persisted to the database until the email address is confirmed via a secure JWT-linked token, preventing database bloat and unauthorized bot registrations.
+### 🍱 Multi-Portal Access Control
+Tailored and role-protected environments across all stakeholders:
+*   **Patient (User) Dashboard**: Discover nearby open pharmacies, search medicine catalogs, place emergency checkouts, track live orders, and manage account details.
+*   **Pharmacy ERP Portal**: Complete operational dashboard with stock listings, batch procurement logs, billing engines, suppliers index, invoice tracking, and revenue analytics.
+*   **Ambulance/Rider Console**: Dispatch standby modes, live order route maps, client contact buttons, and transit state togglers.
+*   **Administrator Control Center**: Global site metrics overview, active user management, registered pharmacy verification checks, and system parameters configuration.
 
-### 🍱 Multi-Portal Ecosystem
-A unified experience with dedicated, role-protected environments:
-- **Patient Portal**: Search, discover, and order.
-- **Pharmacy Dashboard**: Manage inventory, fulfill orders, and track earnings.
-- **Admin Control Center**: Approve pharmacies and monitor platform health.
+### 💻 Desktop cashier Client (`SwasthRoute.exe`)
+*   Located in the `/desktop` folder, a wrapper configuration allows pharmacies to compile and deploy SwasthRoute as a native Windows desktop client (`.exe`) directly on cashier terminals and billing hardware for rapid access.
+
+### 💼 Pharmacy ERP & Billing Engine
+*   **In-App Barcode & Rx Scanner**: Seamless billing invoice generation using an integrated digital barcode reader or optical prescription scanner.
+*   **Medicine Expiry Tracker**: Live visual flags and warnings highlighting stock batches nearing expiration.
+*   **Procurement Logs**: Log batch numbers, manufacturing dates, track stock thresholds, and register suppliers.
+*   **Subscription & Invoice Tracker**: Auto-generation of professional GST-compliant invoices and subscription plans.
+
+### 💳 Payment Operations & PayPal Integration
+*   **PayPal Gateway Integration**: High-fidelity payment processing via the PayPal SDK. Supports order creation and capturing endpoints.
+*   **Zero-Credentials Sandbox Simulator**: Includes a built-in PayPal login and checkout simulator modal inside the patient portal to enable flawless testing without credentials.
+*   **Total Payment Calculation**:
+    *   **Distance-Based Surcharges**: Real-time pickup-to-destination distance calculated via the Haversine formula.
+    *   **Ambulance Care Tier pricing**: Standard base rates applied dynamically (₹500 for Basic Life Support/BLS, ₹1,500 for Advanced/ALS, ₹2,500 for ICU/Cardiac unit) plus a distance surcharge of ₹50/km.
+    *   **Emergency Bypassing**: All high-priority SOS emergency medical checkouts default to Cash on Delivery (COD) to bypass card processing gates during critical situations.
+
+### 🚨 Emergency Operations Suite
+*   **One-Tap "SOS Emergency" Medicine Checkout**: Skip cart adding entirely. Patients upload a prescription photo or record an audio note of their symptoms. The request is broadcasted to the nearest 3 active pharmacies for instant quote bidding.
+*   **Ambulance dispatch booking**: Request BLS, ALS, or ICU ambulances with live coordinate locking and destination trauma hospital routing.
+*   **Mapbox GPS Tracking**: Real-time visual mapping tracking the driver's progress directly to the patient's coordinates.
+
+### 🧠 AI First-Aid Companion (Google Gemini)
+*   **Symptom-Aware Guidance**: The backend queries the Google Gemini Flash API (`gemini-2.5-flash`) with the emergency description to generate 4 targeted first-aid bystander instructions.
+*   **Interactive Checklist**: Displays checkboxes inside the tracking dialog so bystanders can check off actions in real-time.
+
+### 🚚 Rider Delivery & Dispatch Logistics
+*   **Active Matching**: Geospatial driver allocation queries matching the closest available rider within a 15km radius.
+*   **Transit State Transitions**: Riders update transit states dynamically (`accepted` -> `en_route` -> `picked_up` -> `completed`), updating patient screens in real-time.
+*   **GPS Fallback Mechanism**: If browser location permission is denied, the system automatically falls back to Mumbai coordinates (`[19.0760, 72.8777]`), keeping the seeded test nodes completely searchable.
 
 ---
 

@@ -54,6 +54,14 @@ const AmbulanceBookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    emergencyDescription: {
+      type: String,
+      default: '',
+    },
+    firstAidInstructions: {
+      type: [String],
+      default: [],
+    },
     paymentMethod: {
       type: String,
       enum: ['cod', 'card', 'upi'],
