@@ -82,15 +82,18 @@ export class AuthManager {
     latitude: number,
     longitude: number
   ) {
-    const response = await ApiClient.pharmacySignUp(
+    const response = await (ApiClient as any).pharmacySignUp(
       name,
       phone,
       email,
       password,
       city,
+      city,
       pincode,
       latitude,
-      longitude
+      longitude,
+      "",
+      ""
     );
 
     if (response.error) {

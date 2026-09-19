@@ -88,7 +88,7 @@ export default function Navbar() {
         >
           {/* Logo */}
           <Link
-            href="/"
+            href={user ? (user.role === 'pharmacy' ? '/pharmacy' : user.role === 'admin' ? '/admin' : user.role === 'rider' ? '/rider' : '/app') : '/'}
             className="group flex items-center gap-3"
           >
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform duration-500">
@@ -117,7 +117,7 @@ export default function Navbar() {
               <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
-                  onClick={() => router.push('/app/profile')}
+                  onClick={() => router.push(user.role === 'pharmacy' ? '/pharmacy' : user.role === 'admin' ? '/admin' : user.role === 'rider' ? '/rider' : '/app')}
                   className="rounded-full pl-2 pr-4 h-11 bg-slate-50 border border-slate-100 hover:bg-primary/5 hover:border-primary/20 transition-all group"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white mr-2 shadow-md">
@@ -154,10 +154,16 @@ export default function Navbar() {
             )}
 
             <Button
-              onClick={() => scrollToSection('emergency')}
+              onClick={() => {
+                if (user) {
+                  router.push(user.role === 'pharmacy' ? '/pharmacy' : user.role === 'admin' ? '/admin' : user.role === 'rider' ? '/rider' : '/app');
+                } else {
+                  scrollToSection('emergency');
+                }
+              }}
               className="ml-4 bg-destructive hover:bg-destructive/90 text-white font-black uppercase tracking-widest text-[10px] h-12 px-6 rounded-xl shadow-xl shadow-destructive/20 animate-pulse hover:animate-none flex items-center gap-2 group lowercase"
             >
-              emergency <Zap className="w-3.5 h-3.5 fill-white" />
+              {user ? 'portal' : 'emergency'} <Zap className="w-3.5 h-3.5 fill-white" />
             </Button>
           </div>
 
@@ -224,8 +230,8 @@ export default function Navbar() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
+                    <Link href="/app" onClick={() => setIsOpen(false)} className="flex items-center justify-center h-10 bg-primary/10 text-primary font-bold rounded-xl text-xs lowercase">dashboard</Link>
                     <Link href="/app/orders" onClick={() => setIsOpen(false)} className="flex items-center justify-center h-10 bg-slate-50 rounded-xl text-xs font-medium text-slate-600 lowercase">my orders</Link>
-                    <Link href="/app/profile" onClick={() => setIsOpen(false)} className="flex items-center justify-center h-10 bg-slate-50 rounded-xl text-xs font-medium text-slate-600 lowercase">profile</Link>
                   </div>
 
                   <Button

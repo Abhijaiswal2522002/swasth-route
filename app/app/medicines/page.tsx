@@ -54,7 +54,7 @@ function MedicinesContent() {
 
     setIsSubmitting(true);
     try {
-      const address = selectedLocation || user?.addresses[0];
+      const address = selectedLocation || user?.addresses?.[0];
       const res = await ApiClient.createMedicineRequest({
         medicineName: searchTerm,
         quantity: requestData.quantity,

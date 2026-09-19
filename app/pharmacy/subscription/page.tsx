@@ -506,7 +506,7 @@ export default function PharmacySubscriptionPage() {
                     disabled={isCurrent || isDisabled}
                     onClick={() => handleUpgradeClick(plan)}
                   >
-                    {isCurrent ? 'Current Plan' : plan.buttonText}
+                    {isCurrent ? 'Current Plan' : ((plan as any).buttonText || 'Select Plan')}
                     {!isCurrent && <ArrowUpRight className="w-4 h-4 ml-2" />}
                   </Button>
                 </div>

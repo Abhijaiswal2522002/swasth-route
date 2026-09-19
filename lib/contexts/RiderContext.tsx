@@ -18,6 +18,8 @@ interface RiderContextType {
   currentLocation: { lat: number; lng: number } | null;
   earningsHistory: any[];
   isRegistering: boolean;
+  offerTimer: number | null;
+  offeredOrder: any;
   handleToggleOnline: (checked: boolean) => Promise<void>;
   handleAcceptOrder: (orderId: string) => Promise<void>;
   handlePickup: () => Promise<void>;

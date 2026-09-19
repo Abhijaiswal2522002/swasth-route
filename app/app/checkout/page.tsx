@@ -656,7 +656,7 @@ export default function CheckoutPage() {
                   {showBreakdown && !feesBreakdown.isLoading && feesBreakdown.totalDeliveryFee > 0 && (
                     <div className="bg-gray-50 rounded-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
                       {Object.entries(feesBreakdown.details).map(([pId, detail]: [string, any]) => {
-                        const pharmacyName = cartItems.find(i => i.pharmacyId === pId)?.pharmacyName || 'Pharmacy';
+                        const pharmacyName = (cartItems.find(i => i.pharmacyId === pId) as any)?.pharmacyName || 'Pharmacy';
                         return (
                           <div key={pId} className="space-y-2 last:border-0 border-b border-gray-100 pb-2 last:pb-0">
                             <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">{pharmacyName}</p>
