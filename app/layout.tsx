@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import { AuthProvider } from '@/lib/context/AuthContext'
 import { CartProvider } from '@/lib/context/CartContext'
 import { LocationProvider } from '@/lib/context/LocationContext'
+import { Toaster } from '@/components/ui/sonner'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
@@ -55,6 +56,7 @@ export default function RootLayout({
             </CartProvider>
           </LocationProvider>
         </AuthProvider>
+        <Toaster richColors position="top-right" />
         <Analytics />
       </body>
     </html>

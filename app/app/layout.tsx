@@ -26,9 +26,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <footer className="mt-auto px-10 py-8 border-t border-gray-100 bg-white/50 text-gray-400 text-[10px] font-bold uppercase tracking-widest flex items-center justify-between">
              <span>SwasthRoute Digital Health v3.0.2</span>
              <div className="flex items-center gap-4">
-                <a href="#" className="hover:text-blue-600 transition-colors">Privacy Protocol</a>
+                <a href="#" className="hover:text-teal-600 transition-colors">Privacy Protocol</a>
                 <span className="opacity-20">/</span>
-                <a href="#" className="hover:text-blue-600 transition-colors">Emergency Guide</a>
+                <a href="#" className="hover:text-teal-600 transition-colors">Emergency Guide</a>
              </div>
           </footer>
         </main>

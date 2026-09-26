@@ -77,6 +77,5 @@ const InvoiceSchema = new mongoose.Schema(
 
 // Index for pharmacy search
 InvoiceSchema.index({ pharmacyId: 1, createdAt: -1 });
-InvoiceSchema.index({ invoiceNumber: 1 });
 
 export default mongoose.model('Invoice', InvoiceSchema);

@@ -62,9 +62,9 @@ export default function Navbar() {
 
   const navLinks = user?.role === 'pharmacy'
     ? [
-      { label: 'Dashboard', icon: BarChart3, action: () => router.push('/') },
-      { label: 'Orders', icon: ShoppingCart, action: () => router.push('/app/orders') },
-      { label: 'Inventory', icon: Pill, action: () => router.push('/app/inventory') },
+      { label: 'Dashboard', icon: BarChart3, action: () => router.push('/pharmacy') },
+      { label: 'Orders', icon: ShoppingCart, action: () => router.push('/pharmacy/orders') },
+      { label: 'Inventory', icon: Pill, action: () => router.push('/pharmacy/medicines') },
     ]
     : [
       { label: 'How It Works', action: () => scrollToSection('how-it-works') },
@@ -230,8 +230,20 @@ export default function Navbar() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <Link href="/app" onClick={() => setIsOpen(false)} className="flex items-center justify-center h-10 bg-primary/10 text-primary font-bold rounded-xl text-xs lowercase">dashboard</Link>
-                    <Link href="/app/orders" onClick={() => setIsOpen(false)} className="flex items-center justify-center h-10 bg-slate-50 rounded-xl text-xs font-medium text-slate-600 lowercase">my orders</Link>
+                    <Link 
+                      href={user.role === 'pharmacy' ? '/pharmacy' : user.role === 'admin' ? '/admin' : user.role === 'rider' ? '/rider' : '/app'} 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center justify-center h-10 bg-primary/10 text-primary font-bold rounded-xl text-xs lowercase"
+                    >
+                      dashboard
+                    </Link>
+                    <Link 
+                      href={user.role === 'pharmacy' ? '/pharmacy/orders' : '/app/orders'} 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center justify-center h-10 bg-slate-50 rounded-xl text-xs font-medium text-slate-600 lowercase"
+                    >
+                      {user.role === 'pharmacy' ? 'orders' : 'my orders'}
+                    </Link>
                   </div>
 
                   <Button

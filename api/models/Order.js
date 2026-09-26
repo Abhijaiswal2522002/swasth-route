@@ -124,6 +124,5 @@ const OrderSchema = new mongoose.Schema(
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ pharmacyId: 1, status: 1 });
 OrderSchema.index({ status: 1 });
-OrderSchema.index({ orderId: 1 });
 
 export default mongoose.model('Order', OrderSchema);

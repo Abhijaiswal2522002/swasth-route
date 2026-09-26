@@ -19,6 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 const navItems = [
   { name: 'Dashboard', href: '/pharmacy', icon: LayoutDashboard },
+  { name: 'Notifications', isNotification: true, icon: Bell },
   { name: 'Billing', href: '/pharmacy/billing', icon: Receipt },
   { name: 'Invoices', href: '/pharmacy/invoices', icon: History },
   { name: 'Medicines', href: '/pharmacy/medicines', icon: Package },
@@ -40,6 +41,16 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
   
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowNotifications(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -126,68 +137,96 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
     window.location.href = '/';
   };
 
-  const renderNotificationsDropdown = (positionClasses: string) => {
+  const renderNotificationsPanel = () => {
     if (!showNotifications) return null;
     return (
-      <div className={`absolute ${positionClasses} bg-[#1a1c1e] border border-white/10 text-white rounded-3xl p-5 shadow-2xl w-80 md:w-96 max-h-[450px] flex flex-col overflow-hidden z-[100] animate-in zoom-in-95 duration-200`}>
-        <div className="flex justify-between items-center pb-3 border-b border-white/5 mb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <Bell className="w-4 h-4 text-teal-400" />
-            <span className="font-extrabold text-sm tracking-tight text-white">Notification Center</span>
-          </div>
-          {unreadCount > 0 && (
-            <button 
-              onClick={handleMarkAllAsRead}
-              className="text-[10px] text-teal-400 hover:text-teal-300 font-black uppercase tracking-widest leading-none border border-teal-500/20 px-2 py-1.5 rounded-lg hover:bg-teal-500/10 transition-colors"
-            >
-              Mark Read
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1">
-          {notifications.length === 0 ? (
-            <div className="py-10 text-center flex flex-col items-center justify-center gap-3">
-              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-gray-500">
-                <Bell className="w-5 h-5" />
+      <>
+        {/* Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[90] animate-in fade-in duration-200"
+          onClick={() => setShowNotifications(false)}
+        />
+        
+        {/* Flyout Panel */}
+        <aside 
+          className={`fixed top-0 bottom-0 ${isCollapsed ? 'lg:left-20' : 'lg:left-72'} left-0 right-0 sm:right-auto sm:w-96 bg-[#1a1c1e] border-r border-white/10 text-white z-[95] shadow-[25px_0_60px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-in slide-in-from-left duration-300`}
+        >
+          <div className="p-6 pb-4 flex justify-between items-center border-b border-white/5 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+                <Bell className="w-4 h-4" />
               </div>
-              <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">No notifications yet</p>
+              <div>
+                <h3 className="font-extrabold text-sm tracking-tight text-white">Notification Center</h3>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  {unreadCount > 0 ? `${unreadCount} unread alert${unreadCount === 1 ? '' : 's'}` : 'All caught up'}
+                </p>
+              </div>
             </div>
-          ) : (
-            notifications.map((notif) => (
-              <div 
-                key={notif._id}
-                onClick={() => !notif.isRead && handleMarkAsRead(notif._id)}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group/item ${
-                  notif.isRead 
-                    ? 'bg-white/5 border-white/5 opacity-60 hover:opacity-100' 
-                    : 'bg-teal-500/10 border-teal-500/20 hover:bg-teal-500/15'
-                }`}
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={handleMarkAllAsRead}
+                  className="text-[10px] text-teal-400 hover:text-teal-300 font-black uppercase tracking-widest leading-none border border-teal-500/20 px-2.5 py-1.5 rounded-lg hover:bg-teal-500/10 transition-colors"
+                >
+                  Mark Read
+                </button>
+              )}
+              <button 
+                onClick={() => setShowNotifications(false)}
+                className="p-1.5 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                title="Close"
               >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="space-y-1 pr-4">
-                    <p className="font-extrabold text-xs text-white tracking-tight leading-normal flex items-center gap-1.5">
-                      {!notif.isRead && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0 animate-pulse" />}
-                      {notif.title}
-                    </p>
-                    <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{notif.message}</p>
-                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-1">
-                      {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => handleDeleteNotification(notif._id, e)}
-                    className="p-1 rounded-lg hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all opacity-0 group-hover/item:opacity-100 shrink-0"
-                    title="Delete Notification"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar">
+            {notifications.length === 0 ? (
+              <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-gray-500">
+                  <Bell className="w-5 h-5" />
                 </div>
+                <p className="text-gray-400 text-xs font-bold">No notifications yet</p>
+                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">You will see order & expiry alerts here</p>
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            ) : (
+              notifications.map((notif) => (
+                <div 
+                  key={notif._id}
+                  onClick={() => !notif.isRead && handleMarkAsRead(notif._id)}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group/item ${
+                    notif.isRead 
+                      ? 'bg-white/5 border-white/5 opacity-70 hover:opacity-100 hover:bg-white/10' 
+                      : 'bg-teal-500/10 border-teal-500/20 hover:bg-teal-500/15'
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="space-y-1 pr-4">
+                      <p className="font-extrabold text-xs text-white tracking-tight leading-normal flex items-center gap-1.5">
+                        {!notif.isRead && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0 animate-pulse" />}
+                        {notif.title}
+                      </p>
+                      <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{notif.message}</p>
+                      <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-1">
+                        {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteNotification(notif._id, e)}
+                      className="p-1 rounded-lg hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all opacity-0 group-hover/item:opacity-100 shrink-0"
+                      title="Delete Notification"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      </>
     );
   };
 
@@ -210,60 +249,63 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* Notification Bell */}
-            <div className="relative">
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`p-2 rounded-xl hover:bg-white/10 text-gray-400 hover:text-white transition-all relative ${showNotifications ? 'text-white bg-white/10' : ''}`}
-                title="Notifications"
-              >
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                )}
-              </button>
-              {renderNotificationsDropdown("right-0 top-full mt-2")}
-            </div>
-            
-            <button 
-              onClick={onToggle}
-              className={`p-2 rounded-xl hover:bg-white/10 text-gray-400 transition-all ${isCollapsed ? 'hidden' : 'flex'}`}
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          </div>
+          <button 
+            onClick={onToggle}
+            className={`p-2 rounded-xl hover:bg-white/10 text-gray-400 transition-all ${isCollapsed ? 'hidden' : 'flex'}`}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
 
         {isCollapsed && (
-          <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="flex justify-center mb-6">
             <button onClick={onToggle} className="p-3 bg-white/5 rounded-2xl text-teal-400 hover:bg-teal-500 hover:text-white transition-all shadow-lg">
               <Menu className="h-6 w-6" />
             </button>
-            <div className="relative">
-              <button 
-                onClick={() => setShowNotifications(!showNotifications)}
-                className={`p-3 bg-white/5 rounded-2xl text-gray-400 hover:bg-white/10 hover:text-white transition-all shadow-lg relative ${showNotifications ? 'text-white bg-white/10' : ''}`}
-                title="Notifications"
-              >
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-                )}
-              </button>
-              {renderNotificationsDropdown("left-full ml-3 top-0")}
-            </div>
           </div>
         )}
 
         <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} space-y-1.5 overflow-y-auto custom-scrollbar`}>
           {!isCollapsed && <p className="px-4 text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 mt-2">Inventory & Sales</p>}
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isNotification = 'isNotification' in item && item.isNotification;
+            const isActive = isNotification ? showNotifications : pathname === item.href;
+
+            if (isNotification) {
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  title={isCollapsed ? item.name : ''}
+                  className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} group ${isCollapsed ? 'px-0 h-14' : 'px-4 py-3.5'} rounded-2xl transition-all duration-300 relative overflow-hidden ${
+                    isActive 
+                      ? 'bg-teal-600 text-white shadow-xl shadow-teal-600/30' 
+                      : 'text-gray-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5 z-10">
+                    <div className="relative">
+                      <item.icon className={`h-5 w-5 transition-transform duration-500 ${isActive ? 'scale-110' : 'group-hover:text-teal-400 group-hover:scale-110'}`} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse border border-[#1a1c1e]" />
+                      )}
+                    </div>
+                    {!isCollapsed && <span className={`text-sm tracking-tight ${isActive ? 'font-black' : 'font-bold'}`}>{item.name}</span>}
+                  </div>
+                  {!isCollapsed && unreadCount > 0 && (
+                    <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-black rounded-full px-2 py-0.5 z-10">
+                      {unreadCount}
+                    </span>
+                  )}
+                  {!isCollapsed && unreadCount === 0 && <ChevronRight className={`h-4 w-4 transition-all duration-300 ${isActive ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`} />}
+                </button>
+              );
+            }
+
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={item.href!}
                 title={isCollapsed ? item.name : ''}
                 className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} group ${isCollapsed ? 'px-0 h-14' : 'px-4 py-3.5'} rounded-2xl transition-all duration-300 relative overflow-hidden ${
                   isActive 
@@ -327,20 +369,15 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
           <span className="font-black text-gray-900 tracking-tight">SwasthRoute</span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Mobile Notifications Bell */}
-          <div className="relative">
+          {unreadCount > 0 && (
             <button 
-              onClick={() => setShowNotifications(!showNotifications)}
-              className={`p-2.5 rounded-xl hover:bg-gray-100 text-gray-600 transition-all relative ${showNotifications ? 'bg-gray-100' : ''}`}
-              title="Notifications"
+              onClick={() => setShowNotifications(true)}
+              className="px-2.5 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl font-black text-xs flex items-center gap-1.5"
             >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
-              )}
+              <Bell className="w-3.5 h-3.5 text-amber-600" />
+              <span>{unreadCount}</span>
             </button>
-            {renderNotificationsDropdown("right-0 top-full mt-2")}
-          </div>
+          )}
 
           <Button 
             variant="ghost" 
@@ -378,11 +415,38 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
         
         <nav className="p-6 space-y-2 overflow-y-auto max-h-[calc(100vh-200px)] custom-scrollbar">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isNotification = 'isNotification' in item && item.isNotification;
+            const isActive = isNotification ? showNotifications : pathname === item.href;
+
+            if (isNotification) {
+              return (
+                <button
+                  key={item.name}
+                  className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all ${
+                    isActive ? 'bg-teal-600 text-white shadow-xl shadow-teal-600/20' : 'text-gray-400 hover:bg-white/5'
+                  }`}
+                  onClick={() => {
+                    setIsOpen(false);
+                    setShowNotifications(true);
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    <item.icon className="h-5 w-5" />
+                    <span className="font-black text-sm tracking-tight uppercase tracking-widest text-[10px]">{item.name}</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="bg-amber-500 text-black text-[10px] font-black rounded-full px-2 py-0.5">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              );
+            }
+
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={item.href!}
                 className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${
                   isActive ? 'bg-teal-600 text-white shadow-xl shadow-teal-600/20' : 'text-gray-400 hover:bg-white/5'
                 }`}
@@ -405,6 +469,9 @@ export default function PharmacySidebar({ isCollapsed, onToggle }: { isCollapsed
            </Button>
         </div>
       </aside>
+
+      {/* Slide-out Notification Center */}
+      {renderNotificationsPanel()}
     </>
   );
 }

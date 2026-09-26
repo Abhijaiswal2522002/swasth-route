@@ -19,25 +19,63 @@ router.get('/profile', verifyToken, async (req, res) => {
 
 import { uploadUser } from '../middleware/upload.js';
 
+// Safe multer middleware wrapper
+const handleAvatarUpload = (req, res, next) => {
+  const upload = uploadUser.single('avatar');
+  upload(req, res, (err) => {
+    if (err) {
+      console.warn('Avatar upload warning/error:', err.message);
+      return res.status(400).json({ error: `Avatar upload failed: ${err.message}` });
+    }
+    next();
+  });
+};
+
 // Update user profile
-router.put('/profile', verifyToken, uploadUser.single('avatar'), async (req, res) => {
+router.put('/profile', verifyToken, handleAvatarUpload, async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, phone, avatar, healthPreferences } = req.body;
     
-    const updateData = { name, email };
-    
-    if (req.file) {
+    const updateData = {};
+    if (name !== undefined && name.trim()) updateData.name = name.trim();
+    if (email !== undefined && email.trim()) updateData.email = email.trim().toLowerCase();
+    if (phone !== undefined && phone.trim()) updateData.phone = phone.trim();
+
+    if (req.file && req.file.path) {
       updateData.avatar = req.file.path;
+    } else if (avatar !== undefined) {
+      updateData.avatar = avatar;
+    }
+
+    if (healthPreferences !== undefined) {
+      let hp = healthPreferences;
+      if (typeof hp === 'string') {
+        try {
+          hp = JSON.parse(hp);
+        } catch (e) {
+          hp = {};
+        }
+      }
+      updateData.healthPreferences = {
+        frequentlyUsedMedicines: Array.isArray(hp.frequentlyUsedMedicines) ? hp.frequentlyUsedMedicines : [],
+        chronicConditions: hp.chronicConditions || '',
+        allergies: hp.allergies || ''
+      };
     }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      updateData,
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     res.json({ message: 'Profile updated successfully', user });
   } catch (error) {
+    console.error('Error updating profile:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -47,24 +85,36 @@ router.post('/addresses', verifyToken, async (req, res) => {
   try {
     const { label, street, city, state, pincode, latitude, longitude, isDefault } = req.body;
 
+    if (!street || !city || !state || !pincode) {
+      return res.status(400).json({ error: 'Street, city, state, and pincode are required' });
+    }
+
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const willBeDefault = Boolean(isDefault) || user.addresses.length === 0;
+
+    if (willBeDefault) {
+      user.addresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
     user.addresses.push({
-      label,
+      label: label || 'Home',
       street,
       city,
       state,
       pincode,
-      latitude,
-      longitude,
-      isDefault: isDefault || false,
+      latitude: latitude ? Number(latitude) : undefined,
+      longitude: longitude ? Number(longitude) : undefined,
+      isDefault: willBeDefault,
     });
 
     await user.save();
-    res.status(201).json({ message: 'Address added', addresses: user.addresses });
+    res.status(201).json({ message: 'Address added successfully', addresses: user.addresses });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -77,7 +127,7 @@ router.get('/addresses', verifyToken, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(user.addresses);
+    res.json(user.addresses || []);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -90,26 +140,57 @@ router.put('/addresses/:id', verifyToken, async (req, res) => {
     const { label, street, city, state, pincode, latitude, longitude, isDefault } = req.body;
 
     const user = await User.findById(req.user.id);
-    const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    if (addressIndex === -1) {
+    const address = user.addresses.id(id);
+    if (!address) {
       return res.status(404).json({ error: 'Address not found' });
     }
 
-    user.addresses[addressIndex] = {
-      ...user.addresses[addressIndex],
-      label,
-      street,
-      city,
-      state,
-      pincode,
-      latitude,
-      longitude,
-      isDefault,
-    };
+    if (isDefault) {
+      user.addresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    if (label !== undefined) address.label = label;
+    if (street !== undefined) address.street = street;
+    if (city !== undefined) address.city = city;
+    if (state !== undefined) address.state = state;
+    if (pincode !== undefined) address.pincode = pincode;
+    if (latitude !== undefined) address.latitude = Number(latitude);
+    if (longitude !== undefined) address.longitude = Number(longitude);
+    if (isDefault !== undefined) address.isDefault = Boolean(isDefault);
 
     await user.save();
-    res.json({ message: 'Address updated', addresses: user.addresses });
+    res.json({ message: 'Address updated successfully', addresses: user.addresses });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set default address
+router.put('/addresses/:id/default', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const address = user.addresses.id(id);
+    if (!address) {
+      return res.status(404).json({ error: 'Address not found' });
+    }
+
+    user.addresses.forEach(addr => {
+      addr.isDefault = addr._id.toString() === id;
+    });
+
+    await user.save();
+    res.json({ message: 'Default address updated successfully', addresses: user.addresses });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -120,11 +201,24 @@ router.delete('/addresses/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    user.addresses = user.addresses.filter(addr => addr._id.toString() !== id);
+    const targetAddr = user.addresses.id(id);
+    if (!targetAddr) {
+      return res.status(404).json({ error: 'Address not found' });
+    }
+
+    const wasDefault = targetAddr.isDefault;
+    user.addresses.pull({ _id: id });
+
+    if (wasDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+    }
+
     await user.save();
-
-    res.json({ message: 'Address deleted', addresses: user.addresses });
+    res.json({ message: 'Address deleted successfully', addresses: user.addresses });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

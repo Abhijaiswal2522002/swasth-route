@@ -446,27 +446,61 @@ export class ApiClient {
   }
 
   static async addAddress(
-    label: string,
-    street: string,
-    city: string,
-    state: string,
-    pincode: string,
-    latitude: number,
-    longitude: number,
+    labelOrData: string | {
+      label: string;
+      street: string;
+      city: string;
+      state: string;
+      pincode: string;
+      latitude?: number;
+      longitude?: number;
+      isDefault?: boolean;
+    },
+    street?: string,
+    city?: string,
+    state?: string,
+    pincode?: string,
+    latitude?: number,
+    longitude?: number,
     isDefault?: boolean
   ) {
-    return this.request('/users/addresses', {
+    const payload = typeof labelOrData === 'object'
+      ? labelOrData
+      : { label: labelOrData, street, city, state, pincode, latitude, longitude, isDefault };
+    return this.request<{ message: string; addresses: any[] }>('/users/addresses', {
       method: 'POST',
-      body: JSON.stringify({
-        label,
-        street,
-        city,
-        state,
-        pincode,
-        latitude,
-        longitude,
-        isDefault,
-      }),
+      body: JSON.stringify(payload),
+    });
+  }
+
+  static async updateAddress(
+    id: string,
+    data: {
+      label?: string;
+      street?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      latitude?: number;
+      longitude?: number;
+      isDefault?: boolean;
+    }
+  ) {
+    return this.request<{ message: string; addresses: any[] }>(`/users/addresses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async setDefaultAddress(id: string) {
+    return this.request<{ message: string; addresses: any[] }>(`/users/addresses/${id}/default`, {
+      method: 'PUT',
+    });
+  }
+
+  static async deleteAddress(id: string) {
+    return this.request<{ message: string; addresses: any[] }>(`/users/addresses/${id}`, {
+      method: 'DELETE',
     });
   }
 

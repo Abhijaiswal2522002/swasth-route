@@ -56,6 +56,20 @@ const UserSchema = new mongoose.Schema(
         isDefault: Boolean,
       },
     ],
+    healthPreferences: {
+      frequentlyUsedMedicines: {
+        type: [String],
+        default: [],
+      },
+      chronicConditions: {
+        type: String,
+        default: '',
+      },
+      allergies: {
+        type: String,
+        default: '',
+      },
+    },
     rating: {
       type: Number,
       default: 5,
@@ -81,9 +95,5 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// Index for faster queries
-UserSchema.index({ phone: 1 });
-UserSchema.index({ email: 1 });
 
 export default mongoose.model('User', UserSchema);
